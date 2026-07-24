@@ -1,0 +1,95 @@
+name: Deploy WebAssembly demo to Pages
+
+on:
+  push:
+    branches: [main]
+    # Docs-only changes don't affect the built game, so skip the rebuild.
+    paths-ignore:
+      - '**.md'
+  workflow_dispatch:
+
+# Grant the token the permissions the Pages deployment needs.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Allow one Pages deployment at a time; cancel superseded runs.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # The experiment itself. Its committed go.mod requires the published
+      # goxpyriment (which requires the published, upstream go-sdl3), so native
+      # `go build` / `go test` work unchanged for everyone — no replace needed.
+      - name: Checkout Rush-Hour
+        uses: actions/checkout@v4
+        with:
+          path: Rush-Hour
+
+      # The browser build needs SDL3-compiled-to-Emscripten plus a few js/wasm
+      # bindings that aren't in upstream go-sdl3 yet. The fork supplies both the
+      # bindings and the `wasmsdl` bundler (which ships sdl.js + sdl.wasm).
+      - name: Checkout go-sdl3-wasm fork
+        uses: actions/checkout@v4
+        with:
+          repository: chrplr/go-sdl3-wasm
+          ref: wasm-render-fixes
+          path: go-sdl3-wasm
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: Rush-Hour/go.mod
+          cache-dependency-path: Rush-Hour/go.sum
+
+      # Redirect go-sdl3 to the sibling fork for this build only. The replace is
+      # never committed, so it can't affect native (desktop/release) builds,
+      # which keep using the upstream go-sdl3.
+      - name: Point go-sdl3 at the fork (js/wasm bindings)
+        working-directory: Rush-Hour
+        run: go mod edit -replace github.com/Zyko0/go-sdl3=../go-sdl3-wasm
+
+      # wasmsdl compiles the experiment to wasm (assets are embedded, nothing to
+      # copy) and assembles index.html + wasm_exec.js + main.wasm + sdl.js +
+      # sdl.wasm.
+      - name: Build the WebAssembly bundle
+        working-directory: go-sdl3-wasm
+        run: |
+          go run ./cmd/wasmsdl build \
+            -out "$GITHUB_WORKSPACE/dist" \
+            -html "$GITHUB_WORKSPACE/Rush-Hour/web/index.html" \
+            "$GITHUB_WORKSPACE/Rush-Hour"
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy1.outputs.page_url || steps.deploy2.outputs.page_url || steps.deploy3.outputs.page_url }}
+    steps:
+      # GitHub Pages deployment intermittently fails with "Deployment failed, try
+      # again later." Retry up to three times with backoff before giving up.
+      - id: deploy1
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - if: steps.deploy1.outcome == 'failure'
+        run: sleep 20
+      - id: deploy2
+        if: steps.deploy1.outcome == 'failure'
+        uses: actions/deploy-pages@v4
+        continue-on-error: true
+      - if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        run: sleep 30
+      - id: deploy3
+        if: steps.deploy1.outcome == 'failure' && steps.deploy2.outcome == 'failure'
+        uses: actions/deploy-pages@v4

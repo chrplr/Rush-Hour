@@ -1,0 +1,15 @@
+# Executables produced by build.sh / build.bat / go build
+Rush-Hour
+Rush-Hour.exe
+
+# Build/packaging output
+dist/
+
+# WebAssembly bundle (built by the Pages workflow / wasmsdl)
+_build/
+dist-wasm/
+
+# Data files, if they ever land here rather than in $HOME/goxpy_data
+goxpy_data/
+
+.DS_Store

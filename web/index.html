@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Rush Hour</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #1a1a1a; color: #ccc; font-family: system-ui, sans-serif; }
+      body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; }
+      /* SDL's web backend uses the canvas CSS layout size as the window size, so
+         it must not collapse to 0; the Go side sets it at window creation. */
+      #canvas { display: block; max-width: 100%; }
+      #hint { font-size: 14px; opacity: 0.7; text-align: center; }
+      #hint a { color: #8ab4f8; }
+    </style>
+  </head>
+  <body>
+    <canvas id="canvas" oncontextmenu="event.preventDefault()" tabindex="0"></canvas>
+    <p id="hint">Free the red car: click a vehicle on the side that points the way you want it to go.<br>
+      <a href="https://github.com/chrplr/Rush-Hour">(source code)</a></p>
+    <script type="text/javascript">
+      var canvasElement = document.getElementById('canvas');
+      canvasElement.addEventListener('webglcontextlost', (e) => {
+        alert('WebGL context lost. You will need to reload the page.');
+        e.preventDefault();
+      }, false);
+      var Module = { print(...a){console.log(...a);}, printErr(...a){console.error(...a);}, canvas: canvasElement };
+    </script>
+    <script type="text/javascript" src="sdl.js"></script>
+    <script type="text/javascript" src="wasm_exec.js"></script>
+    <script>
+      if (!WebAssembly.instantiateStreaming) {
+        WebAssembly.instantiateStreaming = async (resp, importObject) => {
+          const source = await (await resp).arrayBuffer();
+          return await WebAssembly.instantiate(source, importObject);
+        };
+      }
+      const go = new Go();
+      WebAssembly.instantiateStreaming(fetch("main.wasm"), go.importObject).then((r) => go.run(r.instance));
+    </script>
+  </body>
+</html>
