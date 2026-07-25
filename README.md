@@ -1,10 +1,17 @@
 # Rush Hour — sliding-block problem solving
 
-A Go/goxpyriment port of the **Rush Hour** puzzle (Nob Yoshigahara / ThinkFun),
-turned into a behavioural experiment: a series of trials, each a different 6×6
-traffic jam, with **every mouse action recorded**.
+The puzzle game **Rush Hour** (Nob Yoshigahara / ThinkFun) is a popular paradigm in cognitive
+science and cognitive psychology for studying human spatial planning, backward reasoning, and mental
+simulation (rollout). It has the following features:
 
-Rush Hour is a classic task in the study of planning and insight: the state
+* *Deterministic & Bounded State Space:* Unlike chess, Rush Hour has strict 1D physical constraints
+  (cars only move forward/backward), making state transitions fully deterministic.
+* *Subgoal Hierarchy:* It naturally forces *hierarchical planning*: to
+  solve $A$, you must first solve $B$, which requires moving $C$.
+* *Measurable Thinking Time:* Initial pause duration (first-move latency) provides direct behavioral
+  measurement of the depth of forward planning before execution starts.
+
+Rush Hour is an interesting task for the study of planning and insight: the state
 space is small enough to be solved exhaustively (so each puzzle has an exact
 minimum-move count) but large enough that people plan, backtrack, and get stuck.
 Because the results file holds the complete action sequence, the analysis is not
@@ -12,12 +19,22 @@ limited to "solved / time taken" — the solution path, the detours away from th
 optimal line, the pauses before each move, and the vehicles the participant
 touches without moving are all recoverable.
 
+
+See [RushHourCognition](RushHourCognition.md) for more.
+
+
+# What this repository provides
+
+A [goxpyriment](https://chrplr.github.io/goxpyriment) port of the **Rush Hour** puzzle , turned into
+a behavioural experiment: a series of trials, each a different 6×6 traffic jam, with **every mouse
+action recorded**.
+
+
 ## Play in your browser
 
-A WebAssembly build runs directly in the browser (no install) at
-**<https://chrplr.github.io/Rush-Hour/>**. It is rebuilt from `main` by GitHub
-Actions. Use a focused, foreground tab; browser timing is fine for a
-problem-solving task like this one (but not for sub-millisecond RT paradigms).
+A demo is provided that runs directly in the browser (no install) at
+**<https://chrplr.github.io/Rush-Hour/>**. 
+
 
 ## Binaries
 
@@ -31,11 +48,15 @@ the way on the first run. This does not mean anything is wrong with the program:
 an unsigned, newly published executable is simply something neither system has
 seen before, and you must authorize it.
 
-- **macOS.** If Gatekeeper refuses to launch it, see [this note about unsigned macOS apps](https://chrplr.github.io/note-about-macos-unsigned-apps/).
-- **Windows.** Defender SmartScreen shows a blue "Windows protected your PC" box, and Defender Antivirus may more rarely quarantine the file as a trojan — a well-documented false positive on Go binaries. See [this note about unsigned Windows apps](https://chrplr.github.io/note-about-windows-unsigned-apps/).
+- **macOS.** If Gatekeeper refuses to launch it, see [this note about unsigned macOS
+  apps](https://chrplr.github.io/note-about-macos-unsigned-apps/).
+- **Windows.** Defender SmartScreen shows a blue "Windows protected your PC" box, and Defender
+  Antivirus may more rarely quarantine the file as a trojan — a well-documented false positive on Go
+  binaries. See [this note about unsigned Windows
+  apps](https://chrplr.github.io/note-about-windows-unsigned-apps/).
 
-Building it yourself avoids all of this — a locally compiled executable does not
-trigger the gatekeepers.
+Building it yourself, as described in the next session, avoids all of this — a locally compiled
+executable does not trigger the gatekeepers.
 
 ## Build and run from source
 
@@ -193,5 +214,7 @@ framework for behavioural experiments.
   and the puzzle database the library is drawn from.
 
 ## License
+
+(c) Copyright Christophe Pallier 2026
 
 MIT — see [LICENSE](LICENSE).
