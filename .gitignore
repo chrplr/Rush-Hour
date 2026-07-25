@@ -1,6 +1,7 @@
 # Executables produced by build.sh / build.bat / go build
 Rush-Hour
 Rush-Hour.exe
+rush-hour
 
 # Build/packaging output
 dist/

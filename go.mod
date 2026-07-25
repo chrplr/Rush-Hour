@@ -2,7 +2,7 @@ module rush-hour
 
 go 1.25.7
 
-require github.com/chrplr/goxpyriment v0.12.4
+require github.com/chrplr/goxpyriment v0.12.5
 
 require (
 	github.com/Zyko0/go-sdl3 v0.1.1 // indirect
