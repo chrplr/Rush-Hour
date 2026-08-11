@@ -1,7 +1,11 @@
 // Copyright (2026) Christophe Pallier <christophe@pallier.org>
 // Distributed under the MIT License.
 
-package main
+// Package rush holds the Rush Hour rules: the board, the vehicles, the legality
+// of a move, and the win condition. It has no graphics and no I/O beyond the
+// embedded puzzle library, so it can be shared by the SDL experiment, the
+// headless environment served to reinforcement-learning agents, and the tests.
+package rush
 
 import (
 	"fmt"

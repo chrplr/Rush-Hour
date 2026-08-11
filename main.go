@@ -24,18 +24,16 @@
 package main
 
 import (
-	_ "embed"
 	"flag"
 	"fmt"
 	"log"
 	"time"
 
+	"rush-hour/internal/rush"
+
 	"github.com/chrplr/goxpyriment/clock"
 	"github.com/chrplr/goxpyriment/control"
 )
-
-//go:embed puzzles.txt
-var puzzleFile string
 
 const (
 	itiMS          = 800  // blank screen between puzzles
@@ -72,7 +70,7 @@ func newRow(kind string, tMS int64) eventRow {
 }
 
 // logRow appends one row to the data file.
-func logRow(exp *control.Experiment, trial int, puzzle Puzzle, r eventRow) {
+func logRow(exp *control.Experiment, trial int, puzzle rush.Puzzle, r eventRow) {
 	exp.Data.Add(
 		trial, puzzle.Name, puzzle.MinMoves, r.kind, r.tMS, r.tsNS,
 		r.mouseX, r.mouseY, r.car, r.orient,
@@ -83,19 +81,17 @@ func logRow(exp *control.Experiment, trial int, puzzle Puzzle, r eventRow) {
 
 // runTrial presents one puzzle and returns when it is solved (or when the
 // participant quits, in which case it returns control.EndLoop).
-func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
+func runTrial(exp *control.Experiment, trial int, p rush.Puzzle, nTrials int) error {
 	b := p.Fresh()
 	status := fmt.Sprintf("Puzzle %d/%d - free the RED car", trial, nTrials)
 
 	onset := clock.GetTime()
 	logRow(exp, trial, p, newRow("trial_start", 0))
 
-	// nMoves counts *slides*, not clicks: consecutive one-cell steps of the
+	// slides counts *slides*, not clicks: consecutive one-cell steps of the
 	// same vehicle in the same direction are one slide, which is the metric
 	// puzzles.txt uses for min_moves. The raw clicks remain one row each.
-	nMoves := 0
-	var lastCar *Car
-	lastStep := 0
+	var slides rush.SlideCounter
 
 	for {
 		state := exp.PollEvents(nil)
@@ -106,7 +102,7 @@ func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
 		now := clock.GetTime() - onset
 
 		// Vehicle under the cursor, outlined in white as a hover cue.
-		var hover *Car
+		var hover *rush.Car
 		if row, col, onBoard := cellAt(mx, my); onBoard {
 			hover = b.CarAt(row, col)
 		}
@@ -120,7 +116,7 @@ func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
 			r.mouseX, r.mouseY = mx, my
 
 			row, col, onBoard := cellAt(mx, my)
-			var car *Car
+			var car *rush.Car
 			if onBoard {
 				car = b.CarAt(row, col)
 			}
@@ -131,17 +127,8 @@ func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
 				r.toR, r.toC = car.Row, car.Col
 
 				if step := stepForPoint(car, mx, my); step != 0 {
-					toR, toC := car.Row, car.Col
-					if car.Horizontal {
-						toC += step
-					} else {
-						toR += step
-					}
-					if b.TryMove(car, toR, toC) {
-						if car != lastCar || step != lastStep {
-							nMoves++
-						}
-						lastCar, lastStep = car, step
+					if b.Step(car, step) {
+						slides.Add(car.ID, step)
 						r.kind = "click_move"
 						r.toR, r.toC = car.Row, car.Col
 					}
@@ -154,7 +141,7 @@ func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
 		if b.Solved() {
 			trialMS := clock.GetTime() - onset
 			r := newRow("trial_end", trialMS)
-			r.nMoves = nMoves
+			r.nMoves = slides.N()
 			r.solved = true
 			r.trialMS = trialMS
 			logRow(exp, trial, p, r)
@@ -168,7 +155,7 @@ func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
 			exp.Audio.PlayCorrect()
 			exp.Wait(solvedFeedback)
 			fmt.Printf("Puzzle %2d (%s) solved in %d moves (optimum %d), %.1f s\n",
-				trial, p.Name, nMoves, p.MinMoves, float64(trialMS)/1000)
+				trial, p.Name, slides.N(), p.MinMoves, float64(trialMS)/1000)
 			return nil
 		}
 
@@ -194,7 +181,7 @@ func runTrial(exp *control.Experiment, trial int, p Puzzle, nTrials int) error {
 //
 // The caller has already established that (x, y) is inside this vehicle; a
 // click exactly on the midline (measure zero) yields 0 and moves nothing.
-func stepForPoint(c *Car, x, y float32) int {
+func stepForPoint(c *rush.Car, x, y float32) int {
 	center, _, _ := carRect(c)
 
 	d := x - center.X // horizontal: right of the midline slides right
@@ -211,7 +198,7 @@ func stepForPoint(c *Car, x, y float32) int {
 }
 
 func main() {
-	puzzles, err := ParsePuzzleFile(puzzleFile)
+	puzzles, err := rush.DefaultPuzzles()
 	if err != nil {
 		log.Fatalf("Rush-Hour: %v", err)
 	}

@@ -6,6 +6,8 @@ package main
 import (
 	"math"
 
+	"rush-hour/internal/rush"
+
 	"github.com/chrplr/goxpyriment/control"
 	"github.com/chrplr/goxpyriment/stimuli"
 )
@@ -19,15 +21,15 @@ const (
 	logicalW = int32(1024)
 	logicalH = int32(768)
 
-	tile      = float32(90)                  // cell side, as in the pygame original
-	boardHalf = float32(GridSize) * tile / 2 // 270 — half the 6×6 board
-	boardTop  = boardHalf + 40               // board is shifted up to leave room for the status line
+	tile      = float32(90)                       // cell side, as in the pygame original
+	boardHalf = float32(rush.GridSize) * tile / 2 // 270 — half the 6×6 board
+	boardTop  = boardHalf + 40                    // board is shifted up to leave room for the status line
 
 	carInset  = float32(4)  // colored body inset inside its black outline
 	exitWidth = float32(10) // thickness of the exit marker at the right wall
 
 	// Status line, 40 px below the bottom edge of the board.
-	statusY = boardTop - float32(GridSize)*tile - 40
+	statusY = boardTop - float32(rush.GridSize)*tile - 40
 )
 
 var (
@@ -52,7 +54,7 @@ var (
 )
 
 // carColor returns the drawing color of a vehicle.
-func carColor(c *Car) control.Color {
+func carColor(c *rush.Car) control.Color {
 	if c.IsTarget {
 		return carColors[0]
 	}
@@ -72,14 +74,14 @@ func cellCenter(row, col int) control.FPoint {
 func cellAt(x, y float32) (row, col int, ok bool) {
 	col = int(math.Floor(float64((x + boardHalf) / tile)))
 	row = int(math.Floor(float64((boardTop - y) / tile)))
-	if row < 0 || row >= GridSize || col < 0 || col >= GridSize {
+	if row < 0 || row >= rush.GridSize || col < 0 || col >= rush.GridSize {
 		return row, col, false
 	}
 	return row, col, true
 }
 
 // carRect returns the center and size of a vehicle's full tile span.
-func carRect(c *Car) (center control.FPoint, w, h float32) {
+func carRect(c *rush.Car) (center control.FPoint, w, h float32) {
 	w, h = tile, tile
 	if c.Horizontal {
 		w = tile * float32(c.Length)
@@ -98,15 +100,15 @@ func carRect(c *Car) (center control.FPoint, w, h float32) {
 // drawBoard renders one frame: grid, exit marker, vehicles, and the status
 // line. It clears the screen but does not flip — the caller decides when to
 // present (PacedFlip inside the trial loop).
-func drawBoard(exp *control.Experiment, b *Board, selected *Car, status string) error {
+func drawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, status string) error {
 	if err := exp.Screen.Clear(); err != nil {
 		return err
 	}
 
 	// Grid lines.
 	left, right := -boardHalf, boardHalf
-	top, bottom := boardTop, boardTop-float32(GridSize)*tile
-	for i := 0; i <= GridSize; i++ {
+	top, bottom := boardTop, boardTop-float32(rush.GridSize)*tile
+	for i := 0; i <= rush.GridSize; i++ {
 		y := boardTop - float32(i)*tile
 		line := stimuli.NewLine(control.Point(left, y), control.Point(right, y), gridColor, 1)
 		if err := line.Draw(exp.Screen); err != nil {
@@ -120,7 +122,7 @@ func drawBoard(exp *control.Experiment, b *Board, selected *Car, status string) 
 	}
 
 	// Exit marker on the right wall of the target row.
-	exitCenter := cellCenter(TargetRow, GridSize-1)
+	exitCenter := cellCenter(rush.TargetRow, rush.GridSize-1)
 	exit := stimuli.NewRectangle(right-exitWidth/2, exitCenter.Y, exitWidth, tile, exitColor)
 	if err := exit.Draw(exp.Screen); err != nil {
 		return err

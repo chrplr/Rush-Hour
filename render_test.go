@@ -3,14 +3,22 @@
 
 package main
 
-import "testing"
+import (
+	"testing"
+
+	"rush-hour/internal/rush"
+)
+
+// The board of the original pygame implementation, as in the twin declaration
+// in internal/rush/board_test.go.
+const classic = "BCCCoo BoooDo oAAEDo oooEoo FFoEoo ooGGGo"
 
 // cellAt must be the exact inverse of cellCenter for every cell. This is the
 // place where the +Y-is-UP convention is easiest to get backwards (a mirrored
 // board would still look plausible but respond to clicks on the wrong row).
 func TestCellAtInvertsCellCenter(t *testing.T) {
-	for row := 0; row < GridSize; row++ {
-		for col := 0; col < GridSize; col++ {
+	for row := 0; row < rush.GridSize; row++ {
+		for col := 0; col < rush.GridSize; col++ {
 			p := cellCenter(row, col)
 			gotRow, gotCol, ok := cellAt(p.X, p.Y)
 			if !ok || gotRow != row || gotCol != col {
@@ -23,21 +31,21 @@ func TestCellAtInvertsCellCenter(t *testing.T) {
 
 // Row 0 must be the top row: larger Y.
 func TestRowZeroIsAtTheTop(t *testing.T) {
-	if cellCenter(0, 0).Y <= cellCenter(GridSize-1, 0).Y {
+	if cellCenter(0, 0).Y <= cellCenter(rush.GridSize-1, 0).Y {
 		t.Error("row 0 should be higher on screen (larger Y) than the last row")
 	}
-	if cellCenter(0, 0).X >= cellCenter(0, GridSize-1).X {
+	if cellCenter(0, 0).X >= cellCenter(0, rush.GridSize-1).X {
 		t.Error("column 0 should be left (smaller X) of the last column")
 	}
 }
 
 func TestCellAtOutsideBoard(t *testing.T) {
 	corners := [][2]float32{
-		{-boardHalf - 1, boardTop - 1},    // left of the board
-		{boardHalf + 1, boardTop - 1},     // right of the board
-		{0, boardTop + 1},                 // above the board
-		{0, boardTop - GridSize*tile - 1}, // below the board
-		{0, statusY},                      // on the status line
+		{-boardHalf - 1, boardTop - 1},         // left of the board
+		{boardHalf + 1, boardTop - 1},          // right of the board
+		{0, boardTop + 1},                      // above the board
+		{0, boardTop - rush.GridSize*tile - 1}, // below the board
+		{0, statusY},                           // on the status line
 	}
 	for _, c := range corners {
 		if _, _, ok := cellAt(c[0], c[1]); ok {
@@ -49,9 +57,9 @@ func TestCellAtOutsideBoard(t *testing.T) {
 // carRect must cover exactly the cells the car occupies: its bounding box has
 // to span from the head cell's outer edge to the tail cell's outer edge.
 func TestCarRectSpansItsCells(t *testing.T) {
-	b, err := ParseBoard(classic)
+	b, err := rush.ParseBoard(classic)
 	if err != nil {
-		t.Fatalf("ParseBoard: %v", err)
+		t.Fatalf("rush.ParseBoard: %v", err)
 	}
 	for _, car := range b.Cars {
 		center, w, h := carRect(car)
@@ -87,13 +95,13 @@ func TestCarRectSpansItsCells(t *testing.T) {
 // the vehicle's midline the click landed on. The middle cell of a 3-cell
 // vehicle must NOT be inert: its two halves give opposite directions.
 func TestStepForPointDirection(t *testing.T) {
-	h2 := &Car{Row: 2, Col: 1, Length: 2, Horizontal: true} // cols 1-2
-	v3 := &Car{Row: 1, Col: 3, Length: 3}                   // rows 1-3
+	h2 := &rush.Car{Row: 2, Col: 1, Length: 2, Horizontal: true} // cols 1-2
+	v3 := &rush.Car{Row: 1, Col: 3, Length: 3}                   // rows 1-3
 
 	// Each case clicks the center of cell (row, col), offset by (dx, dy).
 	cases := []struct {
 		name     string
-		car      *Car
+		car      *rush.Car
 		row, col int
 		dx, dy   float32
 		want     int
