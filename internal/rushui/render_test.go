@@ -1,7 +1,7 @@
 // Copyright (2026) Christophe Pallier <christophe@pallier.org>
 // Distributed under the MIT License.
 
-package main
+package rushui
 
 import (
 	"testing"
@@ -13,16 +13,16 @@ import (
 // in internal/rush/board_test.go.
 const classic = "BCCCoo BoooDo oAAEDo oooEoo FFoEoo ooGGGo"
 
-// cellAt must be the exact inverse of cellCenter for every cell. This is the
+// CellAt must be the exact inverse of CellCenter for every cell. This is the
 // place where the +Y-is-UP convention is easiest to get backwards (a mirrored
 // board would still look plausible but respond to clicks on the wrong row).
 func TestCellAtInvertsCellCenter(t *testing.T) {
 	for row := 0; row < rush.GridSize; row++ {
 		for col := 0; col < rush.GridSize; col++ {
-			p := cellCenter(row, col)
-			gotRow, gotCol, ok := cellAt(p.X, p.Y)
+			p := CellCenter(row, col)
+			gotRow, gotCol, ok := CellAt(p.X, p.Y)
 			if !ok || gotRow != row || gotCol != col {
-				t.Errorf("cellAt(cellCenter(%d,%d)) = (%d,%d,%v), want (%d,%d,true)",
+				t.Errorf("CellAt(CellCenter(%d,%d)) = (%d,%d,%v), want (%d,%d,true)",
 					row, col, gotRow, gotCol, ok, row, col)
 			}
 		}
@@ -31,10 +31,10 @@ func TestCellAtInvertsCellCenter(t *testing.T) {
 
 // Row 0 must be the top row: larger Y.
 func TestRowZeroIsAtTheTop(t *testing.T) {
-	if cellCenter(0, 0).Y <= cellCenter(rush.GridSize-1, 0).Y {
+	if CellCenter(0, 0).Y <= CellCenter(rush.GridSize-1, 0).Y {
 		t.Error("row 0 should be higher on screen (larger Y) than the last row")
 	}
-	if cellCenter(0, 0).X >= cellCenter(0, rush.GridSize-1).X {
+	if CellCenter(0, 0).X >= CellCenter(0, rush.GridSize-1).X {
 		t.Error("column 0 should be left (smaller X) of the last column")
 	}
 }
@@ -48,13 +48,13 @@ func TestCellAtOutsideBoard(t *testing.T) {
 		{0, statusY},                           // on the status line
 	}
 	for _, c := range corners {
-		if _, _, ok := cellAt(c[0], c[1]); ok {
-			t.Errorf("cellAt(%v, %v) reported a cell, want outside", c[0], c[1])
+		if _, _, ok := CellAt(c[0], c[1]); ok {
+			t.Errorf("CellAt(%v, %v) reported a cell, want outside", c[0], c[1])
 		}
 	}
 }
 
-// carRect must cover exactly the cells the car occupies: its bounding box has
+// CarRect must cover exactly the cells the car occupies: its bounding box has
 // to span from the head cell's outer edge to the tail cell's outer edge.
 func TestCarRectSpansItsCells(t *testing.T) {
 	b, err := rush.ParseBoard(classic)
@@ -62,15 +62,15 @@ func TestCarRectSpansItsCells(t *testing.T) {
 		t.Fatalf("rush.ParseBoard: %v", err)
 	}
 	for _, car := range b.Cars {
-		center, w, h := carRect(car)
-		head := cellCenter(car.Row, car.Col)
+		center, w, h := CarRect(car)
+		head := CellCenter(car.Row, car.Col)
 		tailRow, tailCol := car.Row, car.Col
 		if car.Horizontal {
 			tailCol += car.Length - 1
 		} else {
 			tailRow += car.Length - 1
 		}
-		tail := cellCenter(tailRow, tailCol)
+		tail := CellCenter(tailRow, tailCol)
 
 		wantX := (head.X + tail.X) / 2
 		wantY := (head.Y + tail.Y) / 2
@@ -91,7 +91,7 @@ func TestCarRectSpansItsCells(t *testing.T) {
 	}
 }
 
-// stepForPoint decides the direction of a one-cell click-move from the side of
+// StepForPoint decides the direction of a one-cell click-move from the side of
 // the vehicle's midline the click landed on. The middle cell of a 3-cell
 // vehicle must NOT be inert: its two halves give opposite directions.
 func TestStepForPointDirection(t *testing.T) {
@@ -116,16 +116,42 @@ func TestStepForPointDirection(t *testing.T) {
 		{"v3 middle cell, lower half", v3, 2, 3, 0, -tile / 4, 1},
 	}
 	for _, c := range cases {
-		p := cellCenter(c.row, c.col)
+		p := CellCenter(c.row, c.col)
 		x, y := p.X+c.dx, p.Y+c.dy
-		if got := stepForPoint(c.car, x, y); got != c.want {
-			t.Errorf("%s: stepForPoint(%v,%v) = %d, want %d", c.name, x, y, got, c.want)
+		if got := StepForPoint(c.car, x, y); got != c.want {
+			t.Errorf("%s: StepForPoint(%v,%v) = %d, want %d", c.name, x, y, got, c.want)
 		}
 	}
 
 	// A click exactly on the midline is the only inert point.
-	center, _, _ := carRect(v3)
-	if got := stepForPoint(v3, center.X, center.Y); got != 0 {
-		t.Errorf("midline: stepForPoint = %d, want 0", got)
+	center, _, _ := CarRect(v3)
+	if got := StepForPoint(v3, center.X, center.Y); got != 0 {
+		t.Errorf("midline: StepForPoint = %d, want 0", got)
+	}
+}
+
+// ClickPoint must land where StepForPoint reads the direction back. Without
+// that, the mouse coordinates in an agent's results file would describe clicks
+// that do not produce the move the same row records.
+func TestClickPointRoundTripsThroughStepForPoint(t *testing.T) {
+	b, err := rush.ParseBoard(classic)
+	if err != nil {
+		t.Fatalf("ParseBoard: %v", err)
+	}
+	for _, car := range b.Cars {
+		for _, dir := range []int{-1, 1} {
+			p := ClickPoint(car, dir)
+			if got := StepForPoint(car, p.X, p.Y); got != dir {
+				t.Errorf("car %s dir %+d: click at (%v,%v) reads back as %d",
+					string(car.Label), dir, p.X, p.Y, got)
+			}
+			// The point has to be on the vehicle, or a participant could not
+			// have produced it.
+			row, col, onBoard := CellAt(p.X, p.Y)
+			if !onBoard || !car.Covers(row, col) {
+				t.Errorf("car %s dir %+d: click at (%v,%v) is not on the vehicle",
+					string(car.Label), dir, p.X, p.Y)
+			}
+		}
 	}
 }

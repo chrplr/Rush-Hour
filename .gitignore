@@ -3,10 +3,13 @@ Rush-Hour
 Rush-Hour.exe
 rush-hour
 
-# The environment server. Anchored: an unanchored "rushhour-env" would also
+# The environment server, headless and the -tags rushui build that draws.
+# Anchored: an unanchored "rushhour-env" would also
 # match the cmd/rushhour-env source directory.
 /rushhour-env
 /rushhour-env.exe
+/rushhour-env-view
+/rushhour-env-view.exe
 
 # Build/packaging output
 dist/

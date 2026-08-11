@@ -25,6 +25,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
+	"time"
 
 	"rush-hour/internal/rush"
 	"rush-hour/internal/rushenv"
@@ -45,8 +47,11 @@ func main() {
 		includeBd   = flag.Bool("board", false, "add the six-line board notation to every state")
 		canonical   = flag.Bool("canonical", true, "index vehicles by position rather than by letter")
 		strict      = flag.Bool("strict", false, "treat an action that moves nothing as an error")
+		csvPath     = flag.String("csv", "", "write the agent's play as a results file, in the experiment's columns")
+		subjectID   = flag.Int("subject", 0, "subject_id written in the results file")
 		showVersion = flag.Bool("version", false, "print the version and exit")
 	)
+	registerViewerFlags()
 	flag.Parse()
 
 	if *showVersion {
@@ -59,6 +64,7 @@ func main() {
 		IncludeBoard: *includeBd,
 		Canonical:    *canonical,
 		Strict:       *strict,
+		Render:       viewerEnabled(),
 		Version:      version,
 	}
 	if *puzzlePath != "" {
@@ -74,7 +80,19 @@ func main() {
 		log.Fatalf("%v", err)
 	}
 
-	if err := srv.Run(os.Stdin, os.Stdout); err != nil {
+	recorder, err := rushenv.NewRecorder(*csvPath, *subjectID, []string{
+		"agent run — the columns are those of a participant's results file",
+		"cmdline: " + strings.Join(os.Args, " "),
+		"rushhour-env: " + version,
+		"start_time: " + time.Now().Format("20060102-150405"),
+	})
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	defer recorder.Close()
+	srv.Observer = recorder.Observe
+
+	if err := serve(srv, recorder); err != nil {
 		log.Fatalf("%v", err)
 	}
 }

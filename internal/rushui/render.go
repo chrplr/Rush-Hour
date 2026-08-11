@@ -1,7 +1,7 @@
 // Copyright (2026) Christophe Pallier <christophe@pallier.org>
 // Distributed under the MIT License.
 
-package main
+package rushui
 
 import (
 	"math"
@@ -18,8 +18,8 @@ import (
 // row 0 is therefore the TOP row and gets the LARGEST Y.
 
 const (
-	logicalW = int32(1024)
-	logicalH = int32(768)
+	LogicalW = int32(1024)
+	LogicalH = int32(768)
 
 	tile      = float32(90)                       // cell side, as in the pygame original
 	boardHalf = float32(rush.GridSize) * tile / 2 // 270 — half the 6×6 board
@@ -33,10 +33,10 @@ const (
 )
 
 var (
-	bgColor     = control.RGB(240, 240, 240)
+	BgColor     = control.RGB(240, 240, 240)
 	gridColor   = control.RGB(180, 180, 180)
 	exitColor   = control.RGB(220, 50, 50)
-	textColor   = control.RGB(30, 30, 30)
+	TextColor   = control.RGB(30, 30, 30)
 	outlineDark = control.RGB(0, 0, 0)
 	selectColor = control.RGB(255, 255, 255)
 
@@ -61,17 +61,17 @@ func carColor(c *rush.Car) control.Color {
 	return carColors[c.ID%(len(carColors)-1)+1]
 }
 
-// cellCenter returns the center of cell (row, col) in center-based coordinates.
-func cellCenter(row, col int) control.FPoint {
+// CellCenter returns the center of cell (row, col) in center-based coordinates.
+func CellCenter(row, col int) control.FPoint {
 	return control.FPoint{
 		X: -boardHalf + tile*(float32(col)+0.5),
 		Y: boardTop - tile*(float32(row)+0.5),
 	}
 }
 
-// cellAt is the inverse of cellCenter: it maps a point to the cell containing
+// CellAt is the inverse of CellCenter: it maps a point to the cell containing
 // it. ok is false when the point falls outside the board.
-func cellAt(x, y float32) (row, col int, ok bool) {
+func CellAt(x, y float32) (row, col int, ok bool) {
 	col = int(math.Floor(float64((x + boardHalf) / tile)))
 	row = int(math.Floor(float64((boardTop - y) / tile)))
 	if row < 0 || row >= rush.GridSize || col < 0 || col >= rush.GridSize {
@@ -80,15 +80,15 @@ func cellAt(x, y float32) (row, col int, ok bool) {
 	return row, col, true
 }
 
-// carRect returns the center and size of a vehicle's full tile span.
-func carRect(c *rush.Car) (center control.FPoint, w, h float32) {
+// CarRect returns the center and size of a vehicle's full tile span.
+func CarRect(c *rush.Car) (center control.FPoint, w, h float32) {
 	w, h = tile, tile
 	if c.Horizontal {
 		w = tile * float32(c.Length)
 	} else {
 		h = tile * float32(c.Length)
 	}
-	head := cellCenter(c.Row, c.Col)
+	head := CellCenter(c.Row, c.Col)
 	if c.Horizontal {
 		center = control.FPoint{X: head.X + tile*float32(c.Length-1)/2, Y: head.Y}
 	} else {
@@ -97,10 +97,56 @@ func carRect(c *rush.Car) (center control.FPoint, w, h float32) {
 	return center, w, h
 }
 
-// drawBoard renders one frame: grid, exit marker, vehicles, and the status
+// StepForPoint maps a click at (x, y) — center-relative screen coordinates —
+// to a one-cell step along the vehicle's axis: the side of the vehicle's
+// midline the click landed on decides the direction. -1 is left (horizontal) or
+// up (vertical), +1 right or down.
+//
+// Splitting on the midline rather than on cell indices matters only for 3-cell
+// vehicles: a cell-index rule leaves their middle cell — a third of their
+// surface — with no direction to give, and so inert. For 2-cell vehicles the
+// midline is the boundary between their two cells, so the two rules agree.
+//
+// The caller has already established that (x, y) is inside this vehicle; a
+// click exactly on the midline (measure zero) yields 0 and moves nothing.
+func StepForPoint(c *rush.Car, x, y float32) int {
+	center, _, _ := CarRect(c)
+
+	d := x - center.X // horizontal: right of the midline slides right
+	if !c.Horizontal {
+		d = center.Y - y // vertical: +Y is up, so below the midline slides down
+	}
+	switch {
+	case d > 0:
+		return 1
+	case d < 0:
+		return -1
+	}
+	return 0
+}
+
+// ClickPoint is the inverse of StepForPoint: the position a participant would
+// have to click to slide this vehicle one cell in dir (-1 left/up, +1
+// right/down). A quarter of a tile off the midline lands inside the vehicle for
+// both 2- and 3-cell vehicles, and unambiguously on the right side of it.
+//
+// The agent environment writes this into the mouse_x/mouse_y columns of its
+// results file, so an agent's row says where the click would have been rather
+// than leaving the columns blank.
+func ClickPoint(c *rush.Car, dir int) control.FPoint {
+	center, _, _ := CarRect(c)
+	offset := float32(dir) * tile / 4
+	if c.Horizontal {
+		return control.FPoint{X: center.X + offset, Y: center.Y}
+	}
+	// +Y is up, so stepping down (+1) means clicking below the midline.
+	return control.FPoint{X: center.X, Y: center.Y - offset}
+}
+
+// DrawBoard renders one frame: grid, exit marker, vehicles, and the status
 // line. It clears the screen but does not flip — the caller decides when to
 // present (PacedFlip inside the trial loop).
-func drawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, status string) error {
+func DrawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, status string) error {
 	if err := exp.Screen.Clear(); err != nil {
 		return err
 	}
@@ -122,7 +168,7 @@ func drawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, statu
 	}
 
 	// Exit marker on the right wall of the target row.
-	exitCenter := cellCenter(rush.TargetRow, rush.GridSize-1)
+	exitCenter := CellCenter(rush.TargetRow, rush.GridSize-1)
 	exit := stimuli.NewRectangle(right-exitWidth/2, exitCenter.Y, exitWidth, tile, exitColor)
 	if err := exit.Draw(exp.Screen); err != nil {
 		return err
@@ -132,7 +178,7 @@ func drawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, statu
 	// RenderFillRect has no border radius, so the pygame rounded corners
 	// become square.
 	for _, car := range b.Cars {
-		center, w, h := carRect(car)
+		center, w, h := CarRect(car)
 
 		border := outlineDark
 		if car == selected {
@@ -149,7 +195,7 @@ func drawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, statu
 	}
 
 	if status != "" {
-		if err := stimuli.NewTextLine(status, 0, statusY, textColor).Draw(exp.Screen); err != nil {
+		if err := stimuli.NewTextLine(status, 0, statusY, TextColor).Draw(exp.Screen); err != nil {
 			return err
 		}
 	}
