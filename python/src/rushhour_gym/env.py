@@ -149,6 +149,11 @@ class RushHourEnv(gymnasium.Env):
             unchanged.
         include_board: ask the server for the board notation on every state.
         puzzle_file: an alternative puzzle library.
+        csv_path: record the agent's play as a results file, in the columns a
+            participant's session produces — the point of which is that one
+            analysis script reads both. The file is complete once close() has
+            run.
+        subject_id: the subject_id column of that file.
 
     Episodes end only by solving. Rush Hour has no dead ends — every move is
     reversible — so there is no losing state; a step budget is a
@@ -172,6 +177,8 @@ class RushHourEnv(gymnasium.Env):
         include_board: bool = False,
         canonical_index: bool = True,
         puzzle_file: str | os.PathLike[str] | None = None,
+        csv_path: str | os.PathLike[str] | None = None,
+        subject_id: int = 0,
         binary: str | os.PathLike[str] | None = None,
         render_mode: str | None = None,
     ):
@@ -203,6 +210,8 @@ class RushHourEnv(gymnasium.Env):
             find_binary(binary),
             server_args(
                 puzzle_file=puzzle_file,
+                csv_path=csv_path,
+                subject_id=subject_id,
                 include_board=self._include_board,
                 canonical=canonical_index,
                 render=render_mode == "human",

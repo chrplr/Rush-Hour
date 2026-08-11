@@ -242,8 +242,10 @@ The window build is separate because goxpyriment carries SDL for every platform;
 the default `rushhour-env` has no graphics dependency at all, which is what a
 training loop wants.
 
-See [python/README.md](python/README.md) for the action and observation spaces,
-the reward schemes, curricula, and the vectorised environment.
+New to this? [README-AI.md](README-AI.md) is a step-by-step guide that assumes
+no prior Gymnasium experience. [python/README.md](python/README.md) is the
+reference: the action and observation spaces, the reward schemes, curricula, and
+the vectorised environment.
 
 ---
 

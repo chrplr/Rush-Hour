@@ -223,11 +223,15 @@ def server_args(
     strict: bool = False,
     max_vehicles: int | None = None,
     render: bool = False,
+    csv_path: str | os.PathLike[str] | None = None,
+    subject_id: int = 0,
 ) -> list[str]:
     """Build the command line for :class:`Engine` from environment options."""
     args: list[str] = []
     if puzzle_file is not None:
         args += ["-puzzles", str(puzzle_file)]
+    if csv_path is not None:
+        args += ["-csv", str(csv_path), "-subject", str(subject_id)]
     if include_board:
         args.append("-board")
     if not canonical:

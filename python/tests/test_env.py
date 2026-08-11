@@ -269,3 +269,34 @@ def test_ansi_render_shows_the_board():
         text = e.render()
         assert text.count("\n") == 5
         assert "A" in text
+
+
+# ── Recording a session ──────────────────────────────────────────────────────
+
+
+def test_csv_path_writes_the_participant_columns(tmp_path):
+    """The results file is what makes an agent run comparable to a session, so
+    it has to be reachable from Python, not only from the binary's flags."""
+    import csv
+
+    path = tmp_path / "agent.csv"
+    with RushHourEnv(puzzle="p02", csv_path=path, subject_id=42) as e:
+        e.reset(seed=0)
+        for action in e.optimal_actions():
+            _obs, _r, terminated, _tr, _info = e.step(action)
+        assert terminated
+    # The file is finalised when the server exits, i.e. on close().
+
+    rows = [
+        r
+        for r in csv.DictReader(
+            line for line in path.read_text().splitlines() if not line.startswith("#")
+        )
+    ]
+    assert [r["event"] for r in rows][0] == "trial_start"
+    assert rows[-1]["event"] == "trial_end"
+    assert rows[-1]["solved"] == "true"
+    # n_moves counts slides, so it matches the declared optimum.
+    assert rows[-1]["n_moves"] == str(rows[-1]["min_moves"]) == "4"
+    assert {r["subject_id"] for r in rows} == {"42"}
+    assert sum(r["event"] == "click_move" for r in rows) == 7

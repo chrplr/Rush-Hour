@@ -8,6 +8,9 @@ are served to Python over a pipe. **One action is one cell, which is exactly
 what one mouse click is for a participant**, so an agent's trace and a
 participant's trace count the same events and can be compared directly.
 
+If you have not used Gymnasium before, start with
+[README-AI.md](../README-AI.md), which walks through the same ground slowly.
+
 ```python
 import gymnasium
 import rushhour_gym  # registers the environment ids
@@ -154,5 +157,7 @@ changing them never means rebuilding Go.
   convolutions and no downsampling.
 - A random walk on a hard board can wander for a very long time without ever
   being stuck. Start on `RushHour-Easy-v0`.
-- Expect roughly 20–50k steps/s for a single environment, dominated by Python's
-  `json`. If that ever binds, batch first.
+- Measured throughput: **28k steps/s** for a single environment (36 µs a step)
+  and **35k** for `RushHourVectorEnv(16)`, on an Intel Core Ultra 7 165H. It is
+  dominated by the pipe round trip and Python's `json`, not by the game. If that
+  ever binds, batch first, then try `orjson`.

@@ -75,6 +75,8 @@ class RushHourVectorEnv(VectorEnv):
         include_board: bool = False,
         canonical_index: bool = True,
         puzzle_file: str | os.PathLike[str] | None = None,
+        csv_path: str | os.PathLike[str] | None = None,
+        subject_id: int = 0,
         binary: str | os.PathLike[str] | None = None,
         render_mode: str | None = None,
     ):
@@ -104,6 +106,8 @@ class RushHourVectorEnv(VectorEnv):
             find_binary(binary),
             server_args(
                 puzzle_file=puzzle_file,
+                csv_path=csv_path,
+                subject_id=subject_id,
                 include_board=include_board,
                 canonical=canonical_index,
             ),
