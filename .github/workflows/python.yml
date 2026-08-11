@@ -1,0 +1,59 @@
+name: Gymnasium environment
+
+# The failure this catches is protocol drift: the Go server and the Python
+# client agree on a wire format that no single-language test can check. Both
+# sides therefore have to be built and run together.
+on:
+  push:
+    branches: [main]
+    paths:
+      - "python/**"
+      - "**.go"
+      - "internal/rush/puzzles.txt"
+      - ".github/workflows/python.yml"
+  pull_request:
+    paths:
+      - "python/**"
+      - "**.go"
+      - "internal/rush/puzzles.txt"
+      - ".github/workflows/python.yml"
+  workflow_dispatch: {}
+
+env:
+  CGO_ENABLED: "0"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build the environment server
+        run: go build -o rushhour-env ./cmd/rushhour-env
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install the package
+        run: pip install -e "python[dev]"
+
+      # Pointing at the binary just built, rather than letting the package build
+      # its own, so the test really exercises this commit's server.
+      - name: Test
+        env:
+          RUSHHOUR_ENV_BIN: ${{ github.workspace }}/rushhour-env
+        run: pytest python/tests -q
+
+      - name: Check the example runs
+        env:
+          RUSHHOUR_ENV_BIN: ${{ github.workspace }}/rushhour-env
+        run: python python/examples/random_agent.py --episodes 3 --max-moves 6

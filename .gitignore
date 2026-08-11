@@ -18,4 +18,10 @@ dist-wasm/
 # Data files, if they ever land here rather than in $HOME/goxpy_data
 goxpy_data/
 
+# Python package
+__pycache__/
+*.egg-info/
+.pytest_cache/
+.venv/
+
 .DS_Store
