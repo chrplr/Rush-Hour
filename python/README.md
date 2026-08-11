@@ -91,6 +91,19 @@ dead ends, since every move is reversible. An unsolved episode therefore ends
 only by `TimeLimit` truncation, which is why a bare `RushHourEnv()` never
 truncates while the registered ids do.
 
+## Vector environments
+
+`RushHourVectorEnv` runs every board in one child process and advances them all
+in a single request:
+
+```python
+envs = gymnasium.make_vec("RushHour-Easy-v0", num_envs=16)
+```
+
+The step cost here is the pipe round trip, not the game, so 16 sub-processes
+would be 16× the overhead for no gain. `SyncVectorEnv`/`AsyncVectorEnv` over
+plain `RushHourEnv` still work if you want them.
+
 ## Curricula
 
 The optimal move count of every puzzle arrives in the handshake, so selection

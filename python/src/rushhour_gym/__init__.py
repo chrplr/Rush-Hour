@@ -23,9 +23,11 @@ from .binary import BinaryNotFound, find_binary
 from .engine import CommandFailed, Engine, EngineDied, EngineError, ProtocolError
 from .env import REWARD_SCHEMES, RushHourEnv
 from .obs import OBS_MODES
+from .vector_env import RushHourVectorEnv
 
 __all__ = [
     "RushHourEnv",
+    "RushHourVectorEnv",
     "Engine",
     "EngineError",
     "EngineDied",
@@ -63,7 +65,11 @@ def register() -> None:
     for spec in _SPECS:
         if spec["id"] in gymnasium.registry:
             continue
-        gymnasium.register(entry_point="rushhour_gym.env:RushHourEnv", **spec)
+        gymnasium.register(
+            entry_point="rushhour_gym.env:RushHourEnv",
+            vector_entry_point="rushhour_gym.vector_env:RushHourVectorEnv",
+            **spec,
+        )
 
 
 register()
