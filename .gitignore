@@ -3,9 +3,9 @@ Rush-Hour
 Rush-Hour.exe
 rush-hour
 
-# The environment server, headless and the -tags rushui build that draws.
-# Anchored: an unanchored "rushhour-env" would also
-# match the cmd/rushhour-env source directory.
+# The environment server: headless, and the -tags rushui build that draws.
+# Anchored, because an unanchored "rushhour-env" would also match the
+# cmd/rushhour-env source directory.
 /rushhour-env
 /rushhour-env.exe
 /rushhour-env-view

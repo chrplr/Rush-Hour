@@ -47,6 +47,11 @@ jobs:
         run: |
           go vet ./...
           go test ./...
+          # The windowed environment server is behind a build tag, so the
+          # default vet/test pass never compiles it. Check it here, or it can
+          # rot unnoticed.
+          go vet -tags rushui ./...
+          go build -tags rushui ./...
 
       - name: Build
         env:
@@ -55,6 +60,10 @@ jobs:
         run: |
           mkdir -p dist/Rush-Hour
           go build -trimpath -ldflags="-s -w" -o "dist/Rush-Hour/Rush-Hour${{ matrix.ext }}" .
+          # The environment server, so that users of the Python package can
+          # point $RUSHHOUR_ENV_BIN at a prebuilt binary instead of needing a
+          # Go toolchain. Headless: no SDL, no window.
+          go build -trimpath -ldflags="-s -w" -o "dist/Rush-Hour/rushhour-env${{ matrix.ext }}" ./cmd/rushhour-env
           cp README.md LICENSE dist/Rush-Hour/
 
       - name: Package

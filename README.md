@@ -118,7 +118,7 @@ every move a discrete, unambiguous event, which is what the data file records.
 
 ## Puzzles
 
-`puzzles.txt` is embedded in the binary (`//go:embed`) and holds a library of
+`internal/rush/puzzles.txt` is embedded in the binary (`//go:embed`) and holds a library of
 **49 puzzles in increasing difficulty, from 3 to 51 moves**, one per line:
 
 ```
@@ -148,7 +148,7 @@ file is ordered easy to hard, a prefix is a graded curriculum.
 The boards come from **Michael Fogleman's exhaustive Rush Hour database**
 (2,577,412 puzzles, [michaelfogleman.com/rush](https://www.michaelfogleman.com/rush/)):
 wall-free positions with at least 8 vehicles, one per difficulty level, re-scored
-with the solver in `board_test.go` (Fogleman's own move metric differs). `p02` is
+with the solver in `internal/rush/solver.go` (Fogleman's own move metric differs). `p02` is
 the board of the original pygame program.
 
 Every line is parsed and validated at startup — a vehicle that is bent, of the
@@ -157,7 +157,8 @@ trial rather than producing an unsolvable board. `TestEmbeddedPuzzles` goes
 further: it solves each puzzle by breadth-first search and fails if one is
 unsolvable, duplicated, mis-labelled, or out of order.
 
-To use a different puzzle set, edit `puzzles.txt` and rebuild. The declared
+To use a different puzzle set, edit `internal/rush/puzzles.txt` and rebuild
+(or pass `-puzzles <path>` to the environment server, which reads one at runtime). The declared
 move count may be omitted (`name: board`); the test then only checks
 solvability and ordering.
 
@@ -169,7 +170,7 @@ One CSV row per **action**, plus a summary row per puzzle.
 
 | Column | Meaning |
 |---|---|
-| `trial`, `puzzle` | Trial number (1-based) and puzzle name from `puzzles.txt` |
+| `trial`, `puzzle` | Trial number (1-based) and puzzle name from the puzzle library |
 | `min_moves` | Length of the shortest solution for this puzzle |
 | `event` | `trial_start`, `click_move`, `click_blocked`, `click_empty`, `trial_end` |
 | `t_ms` | Milliseconds since the onset of the puzzle |
@@ -189,14 +190,79 @@ rows in order reconstructs the exact board state at any point in the trial.
 
 ---
 
+## Letting an agent play
+
+The same game is available as a [Gymnasium](https://gymnasium.farama.org/)
+environment, so an AI agent can be measured on the boards the participants
+solve. **One agent action is one cell, exactly as one mouse click is one cell**,
+which is what makes the two traces comparable: the agent writes the same
+results-file columns, and its `n_moves` is counted by the same rule.
+
+The rules are not reimplemented in Python. A small Go binary serves boards over
+a line-oriented JSON protocol on stdin/stdout, and the Python package is a
+client:
+
+```sh
+go build -o rushhour-env ./cmd/rushhour-env
+pip install -e python
+```
+
+```python
+import gymnasium, rushhour_gym
+
+env = gymnasium.make("RushHour-Easy-v0")
+obs, info = env.reset(seed=0)
+obs, reward, terminated, truncated, info = env.step(0)
+```
+
+The protocol is meant to be driveable by hand, which is also how to check that
+the binary works:
+
+```console
+$ ./rushhour-env -board
+{"id":1,"cmd":"hello"}
+{"id":2,"cmd":"reset","puzzle":"p02"}
+{"id":3,"cmd":"step","action":12}
+```
+
+`-csv <path>` records the agent's play in the participant results format, so an
+agent run and a session can be read by the same analysis script.
+
+To watch an agent play on the real board, build the windowed variant and point
+the environment at it:
+
+```sh
+go build -tags rushui -o rushhour-env-view ./cmd/rushhour-env
+RUSHHOUR_ENV_BIN=./rushhour-env-view python -c "
+from rushhour_gym import RushHourEnv, run_optimal
+env = RushHourEnv(puzzle='p03', render_mode='human'); print(run_optimal(env)); env.close()"
+```
+
+The window build is separate because goxpyriment carries SDL for every platform;
+the default `rushhour-env` has no graphics dependency at all, which is what a
+training loop wants.
+
+See [python/README.md](python/README.md) for the action and observation spaces,
+the reward schemes, curricula, and the vectorised environment.
+
+---
+
 ## Implementation notes
 
-| File | Role |
+| Path | Role |
 |---|---|
-| `board.go` | Puzzle logic — parsing, move legality, win test. No SDL, fully unit-tested |
-| `render.go` | Drawing and the cell ↔ screen-coordinate mapping |
+| `internal/rush/` | The rules — parsing, move legality, win test, and a breadth-first optimal solver. No SDL, fully unit-tested |
+| `internal/rush/puzzles.txt` | The embedded puzzle set |
+| `internal/rushui/` | Drawing and the cell ↔ screen-coordinate mapping |
+| `internal/rushlog/` | The results-file columns, shared by the experiment and the agent environment |
+| `internal/rushenv/` | The JSON-lines protocol that serves boards to another language |
+| `cmd/rushhour-env/` | The environment server binary |
 | `main.go` | Trial loop, input state machine, data logging |
-| `puzzles.txt` | The embedded puzzle set |
+| `python/` | The Gymnasium environment ([its own README](python/README.md)) |
+
+`internal/rush` has no graphics dependency and is where every rule lives, so the
+experiment, the agent environment and the tests all play the same game rather
+than three implementations of it.
 
 Differences from the pygame original it is based on: a series of puzzles instead
 of a single hardcoded board, action logging, one-click/one-cell moves in place
