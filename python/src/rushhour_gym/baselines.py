@@ -1,5 +1,6 @@
 # Copyright (2026) Christophe Pallier <christophe@pallier.org>
-# Distributed under the MIT License.
+# Distributed under the Apache License, Version 2.0.
+# SPDX-License-Identifier: Apache-2.0
 
 """Reference policies to compare a learned agent against.
 

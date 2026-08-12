@@ -1,5 +1,6 @@
 // Copyright (2026) Christophe Pallier <christophe@pallier.org>
-// Distributed under the MIT License.
+// Distributed under the Apache License, Version 2.0.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package rush holds the Rush Hour rules: the board, the vehicles, the legality
 // of a move, and the win condition. It has no graphics and no I/O beyond the

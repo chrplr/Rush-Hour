@@ -283,6 +283,7 @@ framework for behavioural experiments.
 
 ## License
 
-(c) Copyright Christophe Pallier 2026
+Copyright (C) 2026 Christophe Pallier
 
-MIT — see [LICENSE](LICENSE).
+Licensed under the [Apache License, Version 2.0](LICENSE)
+(`SPDX-License-Identifier: Apache-2.0`).

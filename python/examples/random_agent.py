@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (2026) Christophe Pallier <christophe@pallier.org>
-# Distributed under the MIT License.
+# Distributed under the Apache License, Version 2.0.
+# SPDX-License-Identifier: Apache-2.0
 
 """Play the shipped library twice: once at random, once optimally.
 

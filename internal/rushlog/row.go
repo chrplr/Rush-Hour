@@ -1,5 +1,6 @@
 // Copyright (2026) Christophe Pallier <christophe@pallier.org>
-// Distributed under the MIT License.
+// Distributed under the Apache License, Version 2.0.
+// SPDX-License-Identifier: Apache-2.0
 
 // Package rushlog holds the results-file schema, so that a session played by a
 // participant and a session played by an agent produce the same columns in the

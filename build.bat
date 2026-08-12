@@ -1,6 +1,7 @@
 @echo off
 REM Copyright (2026) Christophe Pallier <christophe@pallier.org>
-REM Distributed under the MIT License.
+REM Distributed under the Apache License, Version 2.0.
+REM SPDX-License-Identifier: Apache-2.0
 REM
 REM Build the Rush-Hour executable on Windows.
 REM Double-click this file, or run it from a command prompt:  build.bat

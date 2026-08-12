@@ -1,5 +1,6 @@
 // Copyright (2026) Christophe Pallier <christophe@pallier.org>
-// Distributed under the MIT License.
+// Distributed under the Apache License, Version 2.0.
+// SPDX-License-Identifier: Apache-2.0
 
 // Command rushhour-env serves Rush Hour boards over a line-oriented JSON
 // protocol on stdin/stdout, so a program in another language can play them.
