@@ -187,7 +187,7 @@ func drawWatched(exp *control.Experiment, srv *rushenv.Server, envID int) error 
 	if err := rushui.DrawBoard(exp, board, nil, status); err != nil {
 		return err
 	}
-	return exp.Screen.PacedFlip()
+	return exp.Screen.Flip()
 }
 
 // clickPoint gives an action the screen position a participant's click would

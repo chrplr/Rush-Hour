@@ -157,7 +157,7 @@ func watch(s *rushreplay.Session, lib rushreplay.Library, only int) error {
 		if err := rushui.DrawBoard(exp, p.board(), nil, p.status()); err != nil {
 			return err
 		}
-		return exp.Screen.PacedFlip()
+		return exp.Screen.Flip()
 	})
 	if runErr != nil && !control.IsEndLoop(runErr) {
 		return runErr

@@ -122,7 +122,7 @@ func runTrial(exp *control.Experiment, trial int, p rush.Puzzle, nTrials int) er
 			if err := rushui.DrawBoard(exp, b, nil, "PUZZLE SOLVED!"); err != nil {
 				return err
 			}
-			if err := exp.Screen.PacedFlip(); err != nil {
+			if err := exp.Screen.Flip(); err != nil {
 				return err
 			}
 			exp.Audio.PlayCorrect()
@@ -135,7 +135,7 @@ func runTrial(exp *control.Experiment, trial int, p rush.Puzzle, nTrials int) er
 		if err := rushui.DrawBoard(exp, b, hover, status); err != nil {
 			return err
 		}
-		if err := exp.Screen.PacedFlip(); err != nil {
+		if err := exp.Screen.Flip(); err != nil {
 			return err
 		}
 		time.Sleep(frameSleepMS * time.Millisecond)

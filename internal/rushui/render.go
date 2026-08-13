@@ -146,7 +146,7 @@ func ClickPoint(c *rush.Car, dir int) control.FPoint {
 
 // DrawBoard renders one frame: grid, exit marker, vehicles, and the status
 // line. It clears the screen but does not flip — the caller decides when to
-// present (PacedFlip inside the trial loop).
+// present (Flip inside the trial loop).
 func DrawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, status string) error {
 	if err := exp.Screen.Clear(); err != nil {
 		return err
