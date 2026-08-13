@@ -11,6 +11,12 @@ rush-hour
 /rushhour-env-view
 /rushhour-env-view.exe
 
+# The replay tool: headless, and the -tags rushui build that draws.
+/rushhour-replay
+/rushhour-replay.exe
+/rushhour-replay-view
+/rushhour-replay-view.exe
+
 # Build/packaging output
 dist/
 

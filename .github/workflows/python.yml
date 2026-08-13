@@ -36,8 +36,31 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Test the Go side
+        run: go test ./...
+
       - name: Build the environment server
         run: go build -o rushhour-env ./cmd/rushhour-env
+
+      # A results file is only worth collecting if it can be read back. This
+      # plays a session, then replays the file it produced and checks every row
+      # against the rules — the round trip neither side can check alone. The
+      # actions are arbitrary: what matters is that they produce a mix of moves
+      # and blocked clicks, which is what a real file contains.
+      - name: Record a session and replay it
+        run: |
+          go build -o rushhour-replay ./cmd/rushhour-replay
+          {
+            echo '{"id":1,"cmd":"hello"}'
+            for puzzle in 0 1 2; do
+              echo "{\"id\":2,\"cmd\":\"reset\",\"puzzle_index\":$puzzle}"
+              for action in 0 3 5 2 7 1 4 9 6 11 8 3 0 5; do
+                echo "{\"id\":3,\"cmd\":\"step\",\"action\":$action}"
+              done
+            done
+            echo '{"id":4,"cmd":"close"}'
+          } | ./rushhour-env -csv session.csv -subject 1 > /dev/null
+          ./rushhour-replay session.csv
 
       - uses: actions/setup-python@v5
         with:

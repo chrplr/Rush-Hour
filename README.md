@@ -185,8 +185,62 @@ Every click produces exactly one row. `click_move` is a click that displaced a
 vehicle by one cell; `click_blocked` is a click on a vehicle that could not move
 that way (a wall or a neighbouring vehicle); `click_empty` is a click
 that hit no vehicle at all. The latter two are the record of hesitations and
-failed attempts. Because the board is deterministic, replaying the `click_move`
-rows in order reconstructs the exact board state at any point in the trial.
+failed attempts.
+
+### Replaying a session
+
+The board is deterministic and has no hidden state, so the rows above are a
+complete record: replaying them against a fresh copy of the named puzzle
+reconstructs every position the trial passed through. Nothing else is stored in
+the file, and nothing else needs to be.
+
+```bash
+go build -o rushhour-replay ./cmd/rushhour-replay
+
+./rushhour-replay session.csv          # check it, and summarise each trial
+./rushhour-replay -v session.csv       # print every move
+./rushhour-replay -board session.csv   # print the final position
+```
+
+```
+session.csv: subject 7, 3 trial(s), 21 clicks
+  trial 1   p01     3 moves in  4 clicks (optimum 3), solved in 12.4s  OK
+  trial 2   p02     4 moves in  7 clicks (optimum 4), solved in 20.1s  OK
+```
+
+**Replaying checks the file rather than trusting it.** Each `click_move` row
+records where the vehicle was *and* where it ended up, so a replay can compare
+what the rules produce against what the file claims — and the `trial_end` row is
+an independent second record of the same trial, so `n_moves` and `solved` are
+recomputed from the clicks and compared too. Anything that does not line up is
+reported with its line number, and the exit status is non-zero:
+
+```
+  trial 1   p01     1 moves in  4 clicks (optimum 3), not solved  3 PROBLEM(S)
+      line 5: A cannot step right from (2,2): the rules forbid a move the file records
+      line 6: A is at (2,2), but the file records it at (2,3)
+      line 9: the summary says n_moves=3, replaying the clicks gives 1
+```
+
+That makes it a check on collected data, not only a viewer: run it over a
+directory of sessions and anything corrupted, hand-edited, or written against a
+different puzzle library announces itself.
+
+A session names its puzzles but does not carry them, so one recorded against a
+custom library needs the same file passed back: `-puzzles mine.txt`.
+
+To watch a session play back — at the pace it was recorded, so the pauses are
+the participant's — build with the same tag the agent viewer uses:
+
+```bash
+go build -tags rushui -o rushhour-replay-view ./cmd/rushhour-replay
+./rushhour-replay-view -render session.csv
+```
+
+`Space` pauses, `←`/`→` step one move, `N`/`P` change trial, `R` restarts it,
+`-`/`=` change speed, `Esc` quits. Agent runs carry no thinking time — every row
+is stamped with when the request arrived — so those play at a fixed pace
+instead.
 
 ---
 
@@ -257,8 +311,10 @@ the vectorised environment.
 | `internal/rush/puzzles.txt` | The embedded puzzle set |
 | `internal/rushui/` | Drawing and the cell ↔ screen-coordinate mapping |
 | `internal/rushlog/` | The results-file columns, shared by the experiment and the agent environment |
+| `internal/rushreplay/` | Reads a results file back and re-plays it, checking every row against the rules |
 | `internal/rushenv/` | The JSON-lines protocol that serves boards to another language |
 | `cmd/rushhour-env/` | The environment server binary |
+| `cmd/rushhour-replay/` | The replay tool: check a results file, or watch it with `-tags rushui` |
 | `main.go` | Trial loop, input state machine, data logging |
 | `python/` | The Gymnasium environment ([its own README](python/README.md)) |
 
