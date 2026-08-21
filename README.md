@@ -82,6 +82,9 @@ go run .                  # first 12 puzzles, fullscreen
 go run . -w -s 3          # windowed, subject 3
 go run . -n 20            # first 20 puzzles
 go run . -n 0             # the whole 49-puzzle library
+
+go run . -no-mouse        # scanner: hide the cursor, play with buttons only
+go run . -input-debug     # print every key/button press and the name to bind it by
 ```
 
 ---
@@ -98,7 +101,15 @@ skip key, so every trial contributes a complete solution path. `ESC` (or closing
 the window) ends the whole session; data collected up to that point is kept,
 since the file is flushed after every puzzle.
 
-### Moving a vehicle
+Between puzzles the screen stops at *Puzzle N of M — press any key or button to
+start*. The later puzzles run for minutes, so the participant needs somewhere to
+rest that is not the middle of one, and in a scanner, where they cannot ask to
+wait, the only way to offer that is to stop and require a press. It also fixes
+the start of each trial: the board appears a constant 800 ms after a press the
+participant chose to make, rather than at whatever moment the previous trial
+happened to end.
+
+### Moving a vehicle with the mouse
 
 **One click, one cell.** Click on the side of a vehicle that points the way you
 want it to go: anywhere left of its midline sends a horizontal vehicle one cell
@@ -107,12 +118,96 @@ vertical one. The split is on the vehicle's midline, not on cell boundaries, so
 3-cell vehicles have no inert middle. A step into a wall or into another vehicle
 leaves the board unchanged.
 
-There is no selection state and no dragging. The vehicle under the cursor is
-outlined in white as a hover cue, but that highlight carries no state — it only
-says which vehicle a click would act on.
+There is no dragging. The vehicle under the cursor is outlined as a hover cue,
+but that highlight carries no state — it only says which vehicle a click would
+act on.
 
 This differs from the pygame original, which drags. One click = one cell makes
 every move a discrete, unambiguous event, which is what the data file records.
+
+### Moving a vehicle with buttons
+
+In an MRI or a MEG the participant has neither mouse nor keyboard: they have a
+response box or a gamepad. So the same puzzle can be played entirely with
+buttons, and the two routes write the same rows.
+
+With buttons, **one vehicle is always selected** — outlined in white, with an
+arrow drawn at each end it can still move towards. Four controls move the
+selection from vehicle to vehicle over the board; two slide the selected
+vehicle along its own axis.
+
+| Action | Keyboard | Gamepad |
+|---|---|---|
+| choose the car above / below / left / right | `↑` `↓` `←` `→` | d-pad, or the left stick |
+| slide the selected car left (or up) | `,` or `1` | `L1`/`LB`, `X`, or the left trigger |
+| slide it right (or down) | `.` or `2` | `R1`/`RB`, `B`, or the right trigger |
+| choose the previous / next car | `3` / `4` | — |
+| dismiss an instruction screen | any key | any button |
+
+Selection is **spatial**, not a cursor walking over cells: pressing `→` on the
+red car selects the next car *on its own row*, not the nearer one a row up. A
+vehicle sharing the current row band (for a left/right press) or column band
+(for up/down) always wins over one that does not. When nothing lies that way the
+selection wraps to the far side, so a direction is never a press that does
+nothing, and every vehicle is reachable — over the whole 49-puzzle library, no
+vehicle is ever more than **4 presses** away from any other
+(`TestNeighbourReachesEveryVehicle`).
+
+A box with only four buttons cannot carry four directions *and* two slides, so
+keys `1 2 3 4` fall back to a sequential order instead: `1`/`2` slide, `3`/`4`
+step through the vehicles in reading order. That is a complete interface on its
+own.
+
+#### Wiring up a response box
+
+Most MRI/MEG response boxes enumerate as a **USB keyboard** and send fixed
+characters. If yours sends `1 2 3 4` it already works. Otherwise remap it with
+one flag — a Current Designs fORP in its `b y g r` mode, say:
+
+```bash
+go run . -no-mouse -keys "b=back,y=forward,g=prev,r=next"
+```
+
+A box that enumerates as a **joystick** instead is remapped by button number:
+
+```bash
+go run . -no-mouse -joy "0=back,1=forward,2=prev,3=next"
+```
+
+To find out what a box actually sends, run with `-input-debug` and press each
+button: every press is echoed to stderr under the name the flags use for it,
+whether or not it is bound.
+
+```
+rushinput: using Logitech Gamepad F310 (gamepad)
+rushinput: gamepad button "rightshoulder" → forward
+rushinput: key "7" — not bound
+```
+
+| Flag | Effect |
+|---|---|
+| `-keys <spec>` | keyboard bindings, e.g. `"b=back,y=forward"` |
+| `-pad <spec>` | gamepad buttons, e.g. `"north=confirm"` (names: `south` `east` `west` `north` `a` `b` `x` `y` `back` `guide` `start` `leftstick` `rightstick` `leftshoulder` `rightshoulder` `l1` `r1` `dpup` `dpdown` `dpleft` `dpright`) |
+| `-joy <spec>` | raw joystick buttons, by number from 0 |
+| `-axes=false` | ignore sticks, hats and triggers — for a box whose unused axes drift |
+| `-no-mouse` | hide the cursor and ignore clicks |
+| `-input-debug` | echo every press to stderr |
+
+A spec is a comma-separated list of `control=action` pairs applied **on top of**
+the defaults; actions are `up down left right prev next back forward confirm`,
+and `none` unbinds. Put `clear` first to start from an empty table instead. The
+instruction screen is generated from the live bindings, so a remapped box shows
+the participant its own buttons rather than a fixed list that no longer matches.
+
+The instruction and end screens accept *any* key or button, not the spacebar: an
+instruction screen a participant in a scanner cannot dismiss stops the session.
+
+Controllers plugged in after the program starts are picked up without a restart,
+and auto-repeat is ignored — one press is one action is one row, so holding a
+button down cannot slide a vehicle across the board.
+
+> The browser demo is keyboard and mouse only: its SDL is built without the
+> joystick and gamepad subsystems.
 
 ---
 
@@ -172,20 +267,82 @@ One CSV row per **action**, plus a summary row per puzzle.
 |---|---|
 | `trial`, `puzzle` | Trial number (1-based) and puzzle name from the puzzle library |
 | `min_moves` | Length of the shortest solution for this puzzle |
-| `event` | `trial_start`, `click_move`, `click_blocked`, `click_empty`, `trial_end` |
-| `t_ms` | Milliseconds since the onset of the puzzle |
-| `event_ts_ns` | SDL3 hardware timestamp (ns) — on the three `click_*` rows only |
+| `event` | `trial_start`, `click_move`, `click_blocked`, `click_empty`, `select`, `trial_end` |
+| `t_ms` | Milliseconds from this trial's `trial_start` to this row |
+| `event_ts_ns` | Absolute timestamp on the session clock (ns) — **on every row** |
 | `mouse_x`, `mouse_y` | Cursor position, center-relative, +Y up |
 | `car`, `orientation` | Vehicle letter and `H`/`V` |
 | `from_row`, `from_col` | Position of the vehicle before the move |
 | `to_row`, `to_col` | Position after the move |
 | `n_moves`, `solved`, `trial_ms` | Summary — filled on the `trial_end` row only (`-1` / `false` elsewhere) |
 
-Every click produces exactly one row. `click_move` is a click that displaced a
-vehicle by one cell; `click_blocked` is a click on a vehicle that could not move
-that way (a wall or a neighbouring vehicle); `click_empty` is a click
-that hit no vehicle at all. The latter two are the record of hesitations and
-failed attempts.
+Every action produces exactly one row. `click_move` displaced a vehicle by one
+cell; `click_blocked` is an attempt on a vehicle that could not move that way (a
+wall or a neighbouring vehicle); `click_empty` is a click that hit no vehicle at
+all. The latter two are the record of hesitations and failed attempts.
+
+**The columns do not depend on the input device.** A move made with a gamepad
+writes the same `click_move` row a click on that half of that vehicle would have
+written, `mouse_x`/`mouse_y` included: they get the position of the click that
+was not made, which is what the agent environment has always written for its own
+moves. A session collected with a response box therefore analyses exactly like
+one collected with a mouse, and like an agent's.
+
+The one row a mouse session cannot produce is `select`: a press that moved the
+selection from one vehicle to another without moving the board. It names the
+vehicle the selection landed on. That is the button interface's counterpart to
+the hover a mouse file cannot record — the vehicles a participant considered and
+passed over, and how long they hesitated before choosing.
+
+### Timestamps, and synchronising with a scanner
+
+Every row carries `event_ts_ns`: an absolute instant on **SDL's monotonic
+nanosecond clock**. That is the clock SDL stamps input events with and the one
+`Screen.FlipTS` reports, so a keypress, a gamepad button, a display flip and —
+when they are added — a TTL trigger or a scanner pulse all land on the same
+timebase, with no conversion and no second clock to reconcile.
+
+Two consequences worth knowing:
+
+- **`trial_start` is the flip that put the board on screen**, not the moment the
+  program entered the trial. Those differ by a whole frame — 16 ms at 60 Hz —
+  which is nothing beside a planning latency and a great deal beside an evoked
+  response.
+- **`t_ms` is derived from each row's own hardware timestamp**, not from when
+  the polling loop noticed the event, so it carries no frame quantisation.
+  `t_ms` = (`event_ts_ns` − that trial's `trial_start` `event_ts_ns`) / 10⁶ on
+  every row, exactly.
+
+`trial_end` shares its timestamp with the `click_move` that solved the puzzle,
+since that move *is* the end of the trial; `trial_ms` is the interval from the
+board appearing to that move. Timestamps are non-decreasing over the whole
+session, so the self-paced gap between puzzles is the difference between one
+trial's `trial_end` and the next trial's `trial_start`.
+
+The companion `-info.txt` file carries the anchor that turns the monotonic clock
+into a date:
+
+```
+# --CLOCK
+# c event_ts_ns: SDL monotonic nanosecond clock (SDL_GetTicksNS), on every row
+# c t_ms: milliseconds after that trial's trial_start row, from the same clock
+# c anchor_sdl_ns: 1616078872
+# c anchor_utc: 2026-08-21T14:00:19.977502127Z
+# c anchor_uncertainty_ns: 184
+```
+
+The anchor is sampled by bracketing a wall-clock reading between two clock
+reads and taking the midpoint, so it states its own uncertainty (a couple of
+hundred nanoseconds) rather than leaving it unstated.
+
+**Do not align to an MEG or MRI recording with the wall-clock anchor.** It is
+there to date the session and to find it in an acquisition log. The two
+machines' clocks drift by far more than the effects being measured; alignment
+belongs to an event both systems saw — a scanner pulse, or a trigger — recorded
+in this file on the SDL clock alongside everything else.
+
+An agent's file leaves `event_ts_ns` at 0: there is no display and no
+participant, so there is nothing for the column to mean.
 
 ### Replaying a session
 
@@ -203,7 +360,7 @@ go build -o rushhour-replay ./cmd/rushhour-replay
 ```
 
 ```
-session.csv: subject 7, 3 trial(s), 21 clicks
+session.csv: subject 7, 3 trial(s), 21 clicks, 46 selections
   trial 1   p01     3 moves in  4 clicks (optimum 3), solved in 12.4s  OK
   trial 2   p02     4 moves in  7 clicks (optimum 4), solved in 20.1s  OK
 ```
@@ -310,6 +467,7 @@ the vectorised environment.
 | `internal/rush/` | The rules — parsing, move legality, win test, and a breadth-first optimal solver. No SDL, fully unit-tested |
 | `internal/rush/puzzles.txt` | The embedded puzzle set |
 | `internal/rushui/` | Drawing and the cell ↔ screen-coordinate mapping |
+| `internal/rushinput/` | Keys, gamepad buttons and joystick buttons → the nine actions the game understands; the remapping flags live here |
 | `internal/rushlog/` | The results-file columns, shared by the experiment and the agent environment |
 | `internal/rushreplay/` | Reads a results file back and re-plays it, checking every row against the rules |
 | `internal/rushenv/` | The JSON-lines protocol that serves boards to another language |

@@ -40,6 +40,8 @@ var (
 	TextColor   = control.RGB(30, 30, 30)
 	outlineDark = control.RGB(0, 0, 0)
 	selectColor = control.RGB(255, 255, 255)
+	hoverColor  = control.RGB(120, 120, 120)
+	arrowColor  = control.RGB(255, 255, 255)
 
 	// Vehicle palette, ported from CAR_COLORS in rush.py. Index 0 is the red
 	// target car; the others cycle over the remaining entries.
@@ -144,10 +146,21 @@ func ClickPoint(c *rush.Car, dir int) control.FPoint {
 	return control.FPoint{X: center.X, Y: center.Y - offset}
 }
 
-// DrawBoard renders one frame: grid, exit marker, vehicles, and the status
-// line. It clears the screen but does not flip — the caller decides when to
-// present (Flip inside the trial loop).
-func DrawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, status string) error {
+// DrawBoard renders one frame: grid, exit marker, vehicles, the selection, and
+// the status line. It clears the screen but does not flip — the caller decides
+// when to present (Flip inside the trial loop).
+//
+// selected is the vehicle the buttons would act on: it gets a white outline and
+// an arrow at each end it can still move towards. hover is the vehicle under
+// the mouse, outlined more faintly. Either may be nil, and with one input
+// device in use usually one of them is.
+//
+// Drawing the arrows from the board rather than from the vehicle alone is what
+// makes the button interface legible: a participant who cannot see a cursor can
+// still see, before pressing anything, which of the two buttons will do
+// something. It also states the rule the mouse obeys — a click on the half of a
+// vehicle an arrow points to is the same move.
+func DrawBoard(exp *control.Experiment, b *rush.Board, selected, hover *rush.Car, status string) error {
 	if err := exp.Screen.Clear(); err != nil {
 		return err
 	}
@@ -182,8 +195,11 @@ func DrawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, statu
 		center, w, h := CarRect(car)
 
 		border := outlineDark
-		if car == selected {
+		switch car {
+		case selected:
 			border = selectColor
+		case hover:
+			border = hoverColor
 		}
 		plate := stimuli.NewRectangle(center.X, center.Y, w-carInset, h-carInset, border)
 		if err := plate.Draw(exp.Screen); err != nil {
@@ -195,10 +211,76 @@ func DrawBoard(exp *control.Experiment, b *rush.Board, selected *rush.Car, statu
 		}
 	}
 
+	// Move arrows, drawn last so they sit on top of the selected vehicle.
+	if selected != nil {
+		for _, dir := range []int{rush.Left, rush.Right} {
+			if !b.CanStep(selected, dir) {
+				continue
+			}
+			if err := drawArrow(exp, selected, dir); err != nil {
+				return err
+			}
+		}
+	}
+
 	if status != "" {
 		if err := stimuli.NewTextLine(status, 0, statusY, TextColor).Draw(exp.Screen); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+// arrowHalf is half the arrow's width across its base, as a fraction of a tile.
+// Small enough to sit inside the end cell of a vehicle, big enough to read at
+// the back of a scanner room.
+const arrowHalf = tile * 0.16
+
+// drawArrow draws a filled triangle inside the end of a vehicle, pointing the
+// way a step in dir would take it: at the left end pointing left for a
+// horizontal vehicle, at the top end pointing up for a vertical one, and the
+// mirror image for dir = Right.
+//
+// It is drawn inside the vehicle rather than beyond it because the cell beyond
+// is either off the board or occupied by whatever the vehicle is about to move
+// into — there is no free space out there to draw in, and an arrow overlapping
+// a neighbour would read as belonging to the neighbour.
+func drawArrow(exp *control.Experiment, c *rush.Car, dir int) error {
+	points := arrowPoints(c, dir)
+	// stimuli.Shape takes its points relative to its own position, so the
+	// position stays at the origin and the points carry the whole geometry.
+	return stimuli.NewShape(points[:], arrowColor).Draw(exp.Screen)
+}
+
+// arrowPoints returns the triangle, tip first, in center-relative coordinates.
+//
+// It is split out from the drawing so the geometry can be tested: +Y pointing
+// up while rows count downwards is the one place in this file where a sign
+// error produces a picture that still looks like an arrow, and points the
+// participant at the wrong button.
+func arrowPoints(c *rush.Car, dir int) [3]control.FPoint {
+	center, w, h := CarRect(c)
+
+	// The tip sits a fifth of a tile inside the leading edge, the base a third
+	// of a tile behind the tip.
+	const tipInset, length = tile * 0.20, tile * 0.34
+
+	if c.Horizontal {
+		tipX := center.X + float32(dir)*(w/2-tipInset)
+		backX := tipX - float32(dir)*length
+		return [3]control.FPoint{
+			{X: tipX, Y: center.Y},
+			{X: backX, Y: center.Y + arrowHalf},
+			{X: backX, Y: center.Y - arrowHalf},
+		}
+	}
+
+	// +Y is up, so dir = Down (+1) points towards smaller Y.
+	tipY := center.Y - float32(dir)*(h/2-tipInset)
+	backY := tipY + float32(dir)*length
+	return [3]control.FPoint{
+		{X: center.X, Y: tipY},
+		{X: center.X + arrowHalf, Y: backY},
+		{X: center.X - arrowHalf, Y: backY},
+	}
 }

@@ -292,6 +292,54 @@ func TestBlockedAndEmptyClicksAreReplayable(t *testing.T) {
 	}
 }
 
+// TestSelectRowsAreReplayable covers the rows a session played on a response
+// box or a gamepad adds: a press that moved the selection from one vehicle to
+// another without moving the board. They must replay cleanly, must not count as
+// moves, and must still be checked — a select row names a vehicle and a
+// position, and a file that puts that vehicle somewhere else is wrong about
+// something.
+func TestSelectRowsAreReplayable(t *testing.T) {
+	s, err := ReadFile(fixture(t, 1))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	tr := s.Trials[0]
+	first := tr.Events[0]
+
+	if n := s.Selects(); n != 0 {
+		t.Errorf("Selects() = %d on a mouse session, want 0", n)
+	}
+
+	sel := first
+	sel.Kind = rushlog.EventSelect
+	sel.ToR, sel.ToC = sel.FromR, sel.FromC
+	tr.Events = append([]Event{sel}, tr.Events...)
+
+	if n := s.Selects(); n != 1 {
+		t.Errorf("Selects() = %d after adding one select row, want 1", n)
+	}
+
+	r, err := Replay(tr, mustLibrary(t))
+	if err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+	if !r.OK() {
+		t.Errorf("a select row was reported as a problem: %v", r.Problems)
+	}
+	if r.Slides != tr.MinMoves {
+		t.Errorf("a select row changed the slide count: %d, want %d", r.Slides, tr.MinMoves)
+	}
+	// A select row that puts its vehicle in the wrong place is still caught.
+	tr.Events[0].FromR = (tr.Events[0].FromR + 3) % rush.GridSize
+	r2, err := Replay(tr, mustLibrary(t))
+	if err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+	if r2.OK() {
+		t.Error("a select row recorded at the wrong position was not caught")
+	}
+}
+
 // TestReadsAFileWithoutSubjectID covers the other writer: goxpyriment prepends
 // subject_id, rushlog.Writer prepends subject_id, but a file hand-made from
 // rushlog.Columns alone has neither. Looking columns up by name is what makes

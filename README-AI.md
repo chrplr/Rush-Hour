@@ -384,9 +384,17 @@ Those are the same seventeen columns a participant's file has, in the same
 order, with the same event names — so one analysis script reads both. An agent's
 episode is a trial and each of its actions is a click.
 
+A participant playing with a response box or a gamepad rather than a mouse
+writes the same rows too: a move is a vehicle and a direction whatever named it.
+Such a file has one extra event kind an agent never emits, `select`, for a press
+that moved the participant's selection from one vehicle to another without
+moving the board. Filter it out and the file is shaped exactly like this one.
+
 What an agent cannot produce is hesitation. There is no thinking time between
 its rows, so the timing columns of an agent run mean "when the request arrived"
-and nothing more. The `mouse_x`/`mouse_y` columns are filled in only when the
+and nothing more. `event_ts_ns` stays 0 throughout: in a participant's file it
+is an absolute instant on the display's own clock, used to align the session
+with an MEG or MRI recording, and an agent has neither a display nor a scanner. The `mouse_x`/`mouse_y` columns are filled in only when the
 window is open, with the pixel a participant would have had to click.
 
 ---

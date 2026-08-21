@@ -91,12 +91,24 @@ type Session struct {
 // moved nothing. Hesitation is data: a blocked click is a decision the player
 // made and then could not carry out.
 func (s *Session) Clicks() int {
+	return s.count(rushlog.EventClickMove, rushlog.EventClickBlocked, rushlog.EventClickEmpty)
+}
+
+// Selects counts the presses that moved the selection from one vehicle to
+// another without moving the board, which only a session played on a response
+// box or a gamepad produces. It is 0 for a mouse session and for an agent's
+// file.
+func (s *Session) Selects() int { return s.count(rushlog.EventSelect) }
+
+func (s *Session) count(kinds ...string) int {
 	var n int
 	for _, t := range s.Trials {
 		for _, e := range t.Events {
-			switch e.Kind {
-			case rushlog.EventClickMove, rushlog.EventClickBlocked, rushlog.EventClickEmpty:
-				n++
+			for _, k := range kinds {
+				if e.Kind == k {
+					n++
+					break
+				}
 			}
 		}
 	}

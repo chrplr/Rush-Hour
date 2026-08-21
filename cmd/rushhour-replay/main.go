@@ -128,7 +128,13 @@ func check(path string, lib rushreplay.Library, only int, verbose, showBoard boo
 	if session.SubjectID >= 0 {
 		subject = fmt.Sprintf("subject %d", session.SubjectID)
 	}
-	fmt.Printf("%s: %s, %d trial(s), %d clicks\n", path, subject, len(session.Trials), session.Clicks())
+	// Selections only exist in a session played on a response box or a
+	// gamepad, so they are mentioned only when there are some.
+	selects := ""
+	if n := session.Selects(); n > 0 {
+		selects = fmt.Sprintf(", %d selections", n)
+	}
+	fmt.Printf("%s: %s, %d trial(s), %d clicks%s\n", path, subject, len(session.Trials), session.Clicks(), selects)
 
 	problems := 0
 	for _, t := range session.Trials {

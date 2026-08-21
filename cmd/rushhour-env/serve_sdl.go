@@ -184,7 +184,9 @@ func drawWatched(exp *control.Experiment, srv *rushenv.Server, envID int) error 
 	if board.Solved() {
 		status += " - SOLVED"
 	}
-	if err := rushui.DrawBoard(exp, board, nil, status); err != nil {
+	// No selection and no hover: an agent names a vehicle outright, so there
+	// is no selection state to draw.
+	if err := rushui.DrawBoard(exp, board, nil, nil, status); err != nil {
 		return err
 	}
 	return exp.Screen.Flip()

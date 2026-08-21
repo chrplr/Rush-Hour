@@ -156,3 +156,53 @@ func TestClickPointRoundTripsThroughStepForPoint(t *testing.T) {
 		}
 	}
 }
+
+// The arrow on the selected vehicle tells a participant which button does
+// what, so it must point the way the vehicle would actually go. The trap is
+// that +Y is up on screen while rows count downwards: a sign error here still
+// draws an arrow, just aimed at the wrong button.
+//
+// The check is the one already used for clicks: the tip of the arrow, read
+// back through StepForPoint, must give the direction it was drawn for. That
+// also pins the arrow to the correct half of the vehicle, and so to the half a
+// mouse user would click for the same move.
+func TestArrowPointsTheWayTheVehicleMoves(t *testing.T) {
+	b, err := rush.ParseBoard(classic)
+	if err != nil {
+		t.Fatalf("ParseBoard: %v", err)
+	}
+	for _, car := range b.Cars {
+		center, w, h := CarRect(car)
+		for _, dir := range []int{rush.Left, rush.Right} {
+			points := arrowPoints(car, dir)
+
+			tip := points[0]
+			if got := StepForPoint(car, tip.X, tip.Y); got != dir {
+				t.Errorf("car %s dir %+d: the tip reads back as direction %d",
+					string(car.Label), dir, got)
+			}
+
+			// The whole triangle has to stay on the vehicle: an arrow spilling
+			// over a neighbour would read as belonging to the neighbour.
+			for i, p := range points {
+				if p.X < center.X-w/2 || p.X > center.X+w/2 ||
+					p.Y < center.Y-h/2 || p.Y > center.Y+h/2 {
+					t.Errorf("car %s dir %+d: point %d at (%v,%v) is outside the vehicle",
+						string(car.Label), dir, i, p.X, p.Y)
+				}
+			}
+
+			// And the tip has to be ahead of the base, or the arrow is reversed.
+			var alongTip, alongBase float32
+			if car.Horizontal {
+				alongTip, alongBase = float32(dir)*tip.X, float32(dir)*points[1].X
+			} else {
+				// dir = Down (+1) is towards smaller Y.
+				alongTip, alongBase = -float32(dir)*tip.Y, -float32(dir)*points[1].Y
+			}
+			if alongTip <= alongBase {
+				t.Errorf("car %s dir %+d: the tip is not ahead of the base", string(car.Label), dir)
+			}
+		}
+	}
+}

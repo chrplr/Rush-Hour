@@ -18,7 +18,7 @@
 # wall-free positions with at least 8 vehicles, then re-scored with the solver in
 # internal/rush/solver.go. p02 is the board of the original pygame program.
 
-p01:  3: GBBCCC GIDDEE HIAAMN HJKoMN oJKLMO FFKLoO   # 14 vehicles
+p01:  3: GBBCCC GIDDEE HIAAMN HJKoMN oJKLMO FFKLoO   # 15 vehicles
 p02:  4: BCCCoo BoooDo oAAEDo oooEoo FFoEoo ooGGGo   #  7 vehicles — the classic pygame board
 p03:  5: oEoBBB oEoGoH AAoGoH oFCCoo oFoooo oFoDDD   #  8 vehicles
 p04:  6: GIBBCC GIoJoo GAAJoo HDDDoo HoEEoo FFoooo   # 10 vehicles

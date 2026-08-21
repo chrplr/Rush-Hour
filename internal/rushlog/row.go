@@ -21,13 +21,28 @@ var Columns = []string{
 }
 
 // Event kinds. An agent cannot click on empty space, so EventClickEmpty appears
-// only in human files; everything else is common to both.
+// only in human files, and only a participant using a response box produces
+// EventSelect; everything else is common to both.
+//
+// The click_* names are older than the button interface and are kept for every
+// device, because what they record is a vehicle and a direction, not a pointer.
+// A move made with a gamepad writes the same row a click on that half of that
+// vehicle would have written — including mouse_x/mouse_y, which get the
+// position of the click that was not made (rushui.ClickPoint), as the agent
+// environment has always done. Sessions collected before and after the button
+// interface therefore analyse identically.
 const (
 	EventTrialStart   = "trial_start"
 	EventClickMove    = "click_move"
 	EventClickBlocked = "click_blocked"
 	EventClickEmpty   = "click_empty"
 	EventTrialEnd     = "trial_end"
+
+	// EventSelect is a press that moved the selection from one vehicle to
+	// another without moving anything on the board. It is the button
+	// interface's counterpart to the mouse hover the old files could not
+	// record: the vehicles a participant considered and passed over.
+	EventSelect = "select"
 )
 
 // Row is one line of the results file. The positional fields are -1 on rows

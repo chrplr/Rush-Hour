@@ -154,7 +154,9 @@ func watch(s *rushreplay.Session, lib rushreplay.Library, only int) error {
 		if !p.paused {
 			p.tick()
 		}
-		if err := rushui.DrawBoard(exp, p.board(), nil, p.status()); err != nil {
+		// No selection and no hover: this is a viewer, with no one at the
+		// controls whose choice of vehicle there would be to show.
+		if err := rushui.DrawBoard(exp, p.board(), nil, nil, p.status()); err != nil {
 			return err
 		}
 		return exp.Screen.Flip()
