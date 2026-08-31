@@ -58,12 +58,26 @@ jobs:
           GOOS: ${{ matrix.goos }}
           GOARCH: ${{ matrix.goarch }}
         run: |
+          # Stamped into each tool's -version flag, into the environment
+          # server's handshake, and into the header of every results file they
+          # write. Without it a released binary calls itself "dev" (the default
+          # in cmd/*/main.go), and a data file cannot say which build produced
+          # it -- which defeats the point of recording provenance at all. Only
+          # a tag names a release; anything else is stamped with its commit, so
+          # a binary handed round outside a release is still traceable.
+          VERSION="${{ github.ref_type == 'tag' && github.ref_name || '' }}"
+          [ -n "$VERSION" ] || VERSION="dev-${GITHUB_SHA::7}"
+
           mkdir -p dist/Rush-Hour
           go build -trimpath -ldflags="-s -w" -o "dist/Rush-Hour/Rush-Hour${{ matrix.ext }}" .
           # The environment server, so that users of the Python package can
           # point $RUSHHOUR_ENV_BIN at a prebuilt binary instead of needing a
           # Go toolchain. Headless: no SDL, no window.
-          go build -trimpath -ldflags="-s -w" -o "dist/Rush-Hour/rushhour-env${{ matrix.ext }}" ./cmd/rushhour-env
+          go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o "dist/Rush-Hour/rushhour-env${{ matrix.ext }}" ./cmd/rushhour-env
+          # The replay tool, for the same reason. A results file is only worth
+          # collecting if it can be read back, so checking one should not
+          # require installing Go either.
+          go build -trimpath -ldflags="-s -w -X main.version=$VERSION" -o "dist/Rush-Hour/rushhour-replay${{ matrix.ext }}" ./cmd/rushhour-replay
           cp README.md LICENSE dist/Rush-Hour/
 
       - name: Package
