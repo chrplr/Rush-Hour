@@ -4,7 +4,7 @@ go 1.25.7
 
 require (
 	github.com/Zyko0/go-sdl3 v0.1.1
-	github.com/chrplr/goxpyriment v0.15.0
+	github.com/chrplr/goxpyriment v0.15.2
 )
 
 require (
