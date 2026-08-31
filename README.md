@@ -39,9 +39,17 @@ A demo is provided that runs directly in the browser (no install) at
 ## Binaries
 
 Prebuilt executables for Linux, macOS, and Windows are attached to each
-[release](https://github.com/chrplr/Rush-Hour/releases). Everything — SDL3 and
-the whole puzzle library — is embedded in the single file; there is nothing else
-to download.
+[release](https://github.com/chrplr/Rush-Hour/releases). Each archive holds
+three of them: `Rush-Hour`, the experiment itself; `rushhour-env`, the
+environment server the Python package drives; and `rushhour-replay`, which reads
+a results file back and checks it against the rules. Everything — SDL3 and the
+whole puzzle library — is embedded in each one; there is nothing else to
+download, and no data files to ship. Check a download against the `SHA256SUMS`
+attached beside them.
+
+`rushhour-env` and `rushhour-replay` know which release they came from:
+`-version` prints the tag, and `rushhour-env` writes it into the header of every
+results file it records, so a data file names the build that produced it.
 
 These executables are not code-signed, so macOS and Windows will probably get in
 the way on the first run. This does not mean anything is wrong with the program:
@@ -351,6 +359,9 @@ complete record: replaying them against a fresh copy of the named puzzle
 reconstructs every position the trial passed through. Nothing else is stored in
 the file, and nothing else needs to be.
 
+`rushhour-replay` is in every release archive, so checking a file needs no Go
+toolchain; the build line below is for a source checkout.
+
 ```bash
 go build -o rushhour-replay ./cmd/rushhour-replay
 
@@ -417,6 +428,9 @@ client:
 go build -o rushhour-env ./cmd/rushhour-env
 pip install -e python
 ```
+
+The release archives carry `rushhour-env` too: point `$RUSHHOUR_ENV_BIN` at the
+prebuilt one to skip the Go toolchain entirely.
 
 ```python
 import gymnasium, rushhour_gym
