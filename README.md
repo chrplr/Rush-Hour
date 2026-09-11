@@ -437,15 +437,23 @@ results-file columns, and its `n_moves` is counted by the same rule.
 
 The rules are not reimplemented in Python. A small Go binary serves boards over
 a line-oriented JSON protocol on stdin/stdout, and the Python package is a
-client:
+client. Without the repository:
+
+```sh
+pip install rushhour-gym
+```
+
+On first use the package fetches the `rushhour-env` of the release matching
+its own version (Linux x86-64, macOS arm64, Windows x86-64) into
+`~/.cache/rushhour-gym/`, checked against the release's `SHA256SUMS`. Set
+`$RUSHHOUR_ENV_OFFLINE=1` to forbid that, or `$RUSHHOUR_ENV_BIN` to name a
+binary yourself. From a checkout, the package builds the server from source
+instead when Go is installed:
 
 ```sh
 go build -o rushhour-env ./cmd/rushhour-env
 pip install -e python
 ```
-
-The release archives carry `rushhour-env` too: point `$RUSHHOUR_ENV_BIN` at the
-prebuilt one to skip the Go toolchain entirely.
 
 ```python
 import gymnasium, rushhour_gym

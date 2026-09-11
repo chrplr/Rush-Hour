@@ -4,7 +4,9 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rushhour-gym"
-version = "0.1.0"
+# The version lives in src/rushhour_gym/__init__.py: it is also the release tag
+# the package fetches its engine from, so it must match the tag being cut.
+dynamic = ["version"]
 description = "Rush Hour as a Gymnasium environment, sharing its rules with the psychophysics experiment"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -26,6 +28,9 @@ rl = ["stable-baselines3>=2.3", "sb3-contrib>=2.3"]
 
 [project.urls]
 Homepage = "https://github.com/chrplr/Rush-Hour"
+
+[tool.hatch.version]
+path = "src/rushhour_gym/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/rushhour_gym"]

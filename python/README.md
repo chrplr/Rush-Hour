@@ -31,19 +31,29 @@ env.close()
 ## Installing
 
 ```sh
-pip install -e python[dev]
+pip install rushhour-gym          # from PyPI
+pip install -e python[dev]        # from a checkout, for development
 ```
 
 The Python package needs the `rushhour-env` binary. It is looked for in
-`$RUSHHOUR_ENV_BIN`, then on `PATH`, then in the repository root, and finally
-built from source if a Go toolchain is available:
+`$RUSHHOUR_ENV_BIN`, then on `PATH`, then in the repository root, then built
+from source when the checkout and a Go toolchain are at hand:
 
 ```sh
 go build -o rushhour-env ./cmd/rushhour-env
 ```
 
-Release archives ship a prebuilt one for each platform; point
-`$RUSHHOUR_ENV_BIN` at it to skip needing Go.
+Failing all of that -- the PyPI case -- it is fetched once from the GitHub
+release whose tag is the package version (`v` + `rushhour_gym.__version__`),
+verified against that release's `SHA256SUMS`, and kept in
+`~/.cache/rushhour-gym/<tag>/` (`$XDG_CACHE_HOME` is honoured). Releases carry
+a binary for Linux x86-64, macOS arm64 and Windows x86-64; elsewhere, build it.
+`$RUSHHOUR_ENV_OFFLINE=1` forbids the download.
+
+Because the package version names the release it fetches from, a release is
+cut by bumping `__version__` in `src/rushhour_gym/__init__.py` to the tag's
+number and pushing the tag; the release workflow refuses a tag that does not
+match, and publishes the package to PyPI after the archives.
 
 ## The environment
 

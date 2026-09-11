@@ -43,7 +43,9 @@ __all__ = [
     "register",
 ]
 
-__version__ = "0.1.0"
+# Also the Rush-Hour release tag (v<version>) whose rushhour-env this package
+# fetches when no binary is at hand -- keep it equal to the tag being cut.
+__version__ = "0.4.0"
 
 # Step budgets. Rush Hour has no dead ends, so an episode that is not solved
 # ends only by truncation, and the budget is the only thing standing between a
