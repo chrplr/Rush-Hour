@@ -82,8 +82,47 @@ func TestApplyKeysRemapsAResponseBox(t *testing.T) {
 	}
 	// Overriding adds to the defaults rather than replacing them, so the arrow
 	// keys the experimenter uses to check the setup still work.
-	if got := m.Keys[sdl.K_LEFT]; got != SelectLeft {
-		t.Errorf("left arrow: bound to %v, want %v", got, SelectLeft)
+	if got := m.Keys[sdl.K_LEFT]; got != SelectPrev {
+		t.Errorf("left arrow: bound to %v, want %v", got, SelectPrev)
+	}
+}
+
+// The arrow keys carry the four-button scheme, laid out the way the box is:
+// left/right walk the vehicles, up/down slide. A desk rehearsal on the arrows
+// then matches what the participant gets.
+func TestArrowsMirrorTheFourButtonBox(t *testing.T) {
+	m := DefaultMap()
+	for k, a := range map[sdl.Keycode]Action{
+		sdl.K_LEFT: SelectPrev, sdl.K_RIGHT: SelectNext,
+		sdl.K_UP: MoveBack, sdl.K_DOWN: MoveForward,
+	} {
+		if got := m.Keys[k]; got != a {
+			t.Errorf("key %q: bound to %v, want %v", KeyName(k), got, a)
+		}
+	}
+}
+
+// The legend names the arrows first and does not list a keypad digit beside
+// the plain digit it duplicates, so a participant is not told about a third
+// button that is not on the box.
+func TestLegendKeyNames(t *testing.T) {
+	lines := DefaultMap().Legend(false)
+	want := []string{
+		"left / 3  —  choose the previous car",
+		"right / 4  —  choose the next car",
+		"up / , / 1  —  slide it left, or up if it is vertical",
+		"down / . / 2  —  slide it right, or down if it is vertical",
+	}
+	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
+		t.Errorf("legend:\n%s\nwant:\n%s", strings.Join(lines, "\n"), strings.Join(want, "\n"))
+	}
+	// A keypad digit whose plain digit is unbound is still listed.
+	m := DefaultMap()
+	if err := m.ApplyKeys("1=none"); err != nil {
+		t.Fatalf("ApplyKeys: %v", err)
+	}
+	if got := m.Legend(false)[2]; got != "up / , / kp1  —  slide it left, or up if it is vertical" {
+		t.Errorf("legend with 1 unbound: %q", got)
 	}
 }
 

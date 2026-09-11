@@ -20,13 +20,14 @@
 //     There is no selection state and no dragging.
 //
 //   - With buttons, one vehicle is always selected — outlined in white, with an
-//     arrow at each end it can still move towards. Four controls move the
-//     selection from vehicle to vehicle over the board, and two slide the
-//     selected vehicle along its own axis. A box with only four buttons gets
-//     two of them for sliding and two for stepping through the vehicles in
-//     order. See package internal/rushinput, and the -keys / -pad / -joy flags.
-//     Choosing skips vehicles that cannot move at all; -movable-only=false
-//     offers every vehicle.
+//     arrow at each end it can still move towards. Two controls step the
+//     selection through the vehicles in order, and two slide the selected
+//     vehicle along its own axis: that is the four-button response box, and
+//     the arrow keys carry the same scheme. A gamepad's d-pad moves the
+//     selection spatially over the board instead. See package
+//     internal/rushinput, and the -keys / -pad / -joy flags. Choosing skips
+//     vehicles that cannot move at all; -movable-only=false offers every
+//     vehicle.
 //
 // The two produce the same rows: a move is a vehicle and a direction whichever
 // device named it.

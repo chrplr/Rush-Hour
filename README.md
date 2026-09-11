@@ -140,31 +140,33 @@ response box or a gamepad. So the same puzzle can be played entirely with
 buttons, and the two routes write the same rows.
 
 With buttons, **one vehicle is always selected** — outlined in white, with an
-arrow drawn at each end it can still move towards. Four controls move the
-selection from vehicle to vehicle over the board; two slide the selected
-vehicle along its own axis.
+arrow drawn at each end it can still move towards. Two controls step the
+selection through the vehicles; two slide the selected vehicle along its own
+axis.
 
 | Action | Keyboard | Gamepad |
 |---|---|---|
-| choose the car above / below / left / right | `↑` `↓` `←` `→` | d-pad, or the left stick |
-| slide the selected car left (or up) | `,` or `1` | `L1`/`LB`, `X`, or the left trigger |
-| slide it right (or down) | `.` or `2` | `R1`/`RB`, `B`, or the right trigger |
-| choose the previous / next car | `3` / `4` | — |
+| choose the previous / next car | `←` / `→`, or `3` / `4` | — |
+| slide the selected car left (or up, if it is vertical) | `↑`, `,` or `1` | `L1`/`LB`, `X`, or the left trigger |
+| slide it right (or down) | `↓`, `.` or `2` | `R1`/`RB`, `B`, or the right trigger |
+| choose the car above / below / left / right | — | d-pad, or the left stick |
 | dismiss an instruction screen | any key | any button |
 
-Selection is **spatial**, not a cursor walking over cells: pressing `→` on the
-red car selects the next car *on its own row*, not the nearer one a row up. A
-vehicle sharing the current row band (for a left/right press) or column band
-(for up/down) always wins over one that does not. When nothing lies that way the
-selection wraps to the far side, so a direction is never a press that does
-nothing, and every vehicle is reachable — over the whole 49-puzzle library, no
-vehicle is ever more than **4 presses** away from any other
-(`TestNeighbourReachesEveryVehicle`).
+This is the four-button scheme: an MRI response box sending `1 2 3 4` cannot
+carry four directions *and* two slides, so `1`/`2` slide and `3`/`4` step
+through the vehicles in reading order. The arrow keys carry the same scheme,
+laid out the way the box is, so what you rehearse at the desk is what the
+participant gets. Pilots preferred it to spatial arrows.
 
-A box with only four buttons cannot carry four directions *and* two slides, so
-keys `1 2 3 4` fall back to a sequential order instead: `1`/`2` slide, `3`/`4`
-step through the vehicles in reading order. That is a complete interface on its
-own.
+A gamepad has buttons to spare, so its d-pad selects **spatially**, not as a
+cursor walking over cells: pressing right on the red car selects the next car
+*on its own row*, not the nearer one a row up. A vehicle sharing the current
+row band (for a left/right press) or column band (for up/down) always wins
+over one that does not. When nothing lies that way the selection wraps to the
+far side, so a direction is never a press that does nothing, and every vehicle
+is reachable — over the whole 49-puzzle library, no vehicle is ever more than
+**4 presses** away from any other (`TestNeighbourReachesEveryVehicle`). To get
+spatial selection on the keyboard: `-keys "up=up,down=down,left=left,right=right"`.
 
 By default, both the spatial presses and the `3`/`4` cycle skip any vehicle
 that cannot move in either direction right now, so choosing only ever lands on

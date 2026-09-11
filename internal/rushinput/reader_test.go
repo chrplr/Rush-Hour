@@ -83,7 +83,7 @@ func want(t *testing.T, got []Action, expected ...Action) {
 func TestKeysProduceActions(t *testing.T) {
 	r := New(DefaultMap())
 	want(t, feed(r, keyDown(sdl.K_LEFT, 0), keyDown(sdl.K_1, 0), keyDown(sdl.K_2, 0)),
-		SelectLeft, MoveBack, MoveForward)
+		SelectPrev, MoveBack, MoveForward)
 }
 
 func TestUnboundKeyProducesNothing(t *testing.T) {

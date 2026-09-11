@@ -32,23 +32,27 @@ type Map struct {
 //     vehicle back and forward. X and B duplicate the shoulders for players who
 //     reach for the face buttons, and the triggers duplicate them again.
 //
-//   - A keyboard gets the same thing on the arrow keys, with ',' and '.' for
-//     the two slides.
-//
 //   - A four-button response box sending "1 2 3 4" — the common MRI case — gets
 //     the reduced scheme: 1 and 2 slide, 3 and 4 walk the vehicles in order.
 //     Four buttons cannot carry four directions *and* two slides, so selection
 //     falls back from spatial to sequential rather than losing a direction.
+//
+//   - A keyboard gets that same reduced scheme on the arrow keys — left and
+//     right walk the vehicles, up and down slide — so what the experimenter
+//     rehearses at the desk is what the participant gets on the box. ',' and
+//     '.' duplicate the slides. Pilots preferred this to a spatial arrow
+//     scheme, which is still one -keys flag away:
+//     -keys "up=up,down=down,left=left,right=right".
 //
 // A box that sends other characters (fORP's "b y g r", say) needs one -keys
 // flag; a box that enumerates as a joystick needs one -joy flag.
 func DefaultMap() Map {
 	return Map{
 		Keys: map[sdl.Keycode]Action{
-			sdl.K_UP:       SelectUp,
-			sdl.K_DOWN:     SelectDown,
-			sdl.K_LEFT:     SelectLeft,
-			sdl.K_RIGHT:    SelectRight,
+			sdl.K_UP:       MoveBack,
+			sdl.K_DOWN:     MoveForward,
+			sdl.K_LEFT:     SelectPrev,
+			sdl.K_RIGHT:    SelectNext,
 			sdl.K_COMMA:    MoveBack,
 			sdl.K_PERIOD:   MoveForward,
 			sdl.K_1:        MoveBack,
@@ -315,8 +319,8 @@ var legendText = map[Action]string{
 	SelectRight: "choose the car to the right",
 	SelectPrev:  "choose the previous car",
 	SelectNext:  "choose the next car",
-	MoveBack:    "move it left / up",
-	MoveForward: "move it right / down",
+	MoveBack:    "slide it left, or up if it is vertical",
+	MoveForward: "slide it right, or down if it is vertical",
 }
 
 // Legend describes the live bindings, one line per action that has any, for the
@@ -335,7 +339,7 @@ func (m Map) Legend(pads bool) []string {
 	var lines []string
 	for _, a := range legendOrder {
 		var controls []string
-		if names := sortedNames(keys[a], KeyName); len(names) > 0 {
+		if names := keyLegendNames(keys[a]); len(names) > 0 {
 			controls = append(controls, strings.Join(names, " / "))
 		}
 		if pads {
@@ -354,6 +358,40 @@ func (m Map) Legend(pads bool) []string {
 		lines = append(lines, fmt.Sprintf("%s  —  %s", strings.Join(controls, " or "), legendText[a]))
 	}
 	return lines
+}
+
+// keypadDigit maps each keypad digit to the plain digit key that types the
+// same character. (The keycodes are not contiguous: KP_0 comes after KP_9.)
+var keypadDigit = map[sdl.Keycode]sdl.Keycode{
+	sdl.K_KP_0: sdl.K_0, sdl.K_KP_1: sdl.K_1, sdl.K_KP_2: sdl.K_2, sdl.K_KP_3: sdl.K_3,
+	sdl.K_KP_4: sdl.K_4, sdl.K_KP_5: sdl.K_5, sdl.K_KP_6: sdl.K_6, sdl.K_KP_7: sdl.K_7,
+	sdl.K_KP_8: sdl.K_8, sdl.K_KP_9: sdl.K_9,
+}
+
+// keyLegendNames renders the keys bound to one action for a participant: the
+// arrow keys first, since they are the keyboard's primary control, then the
+// rest in a stable order — minus a keypad digit that only duplicates the plain
+// digit bound beside it, which would read as a third button that is not there.
+func keyLegendNames(keys []sdl.Keycode) []string {
+	bound := map[sdl.Keycode]bool{}
+	for _, k := range keys {
+		bound[k] = true
+	}
+	var arrows, rest []string
+	for _, k := range keys {
+		switch k {
+		case sdl.K_UP, sdl.K_DOWN, sdl.K_LEFT, sdl.K_RIGHT:
+			arrows = append(arrows, KeyName(k))
+		default:
+			if digit, isKP := keypadDigit[k]; isKP && bound[digit] {
+				continue
+			}
+			rest = append(rest, KeyName(k))
+		}
+	}
+	sort.Strings(arrows)
+	sort.Strings(rest)
+	return append(arrows, rest...)
 }
 
 func invert[K comparable](table map[K]Action) map[Action][]K {
