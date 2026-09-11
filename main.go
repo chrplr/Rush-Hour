@@ -25,6 +25,8 @@
 //     selected vehicle along its own axis. A box with only four buttons gets
 //     two of them for sliding and two for stepping through the vehicles in
 //     order. See package internal/rushinput, and the -keys / -pad / -joy flags.
+//     Choosing skips vehicles that cannot move at all; -movable-only=false
+//     offers every vehicle.
 //
 // The two produce the same rows: a move is a vehicle and a direction whichever
 // device named it.
@@ -104,28 +106,34 @@ func carRow(r *rushlog.Row, car *rush.Car) {
 	r.ToR, r.ToC = car.Row, car.Col
 }
 
-// selectionFor returns the vehicle a selection action lands on.
-func selectionFor(b *rush.Board, sel *rush.Car, a rushinput.Action) *rush.Car {
+// selectionFor returns the vehicle a selection action lands on. With
+// movableOnly (the -movable-only flag, on by default) vehicles that cannot
+// move are skipped.
+func selectionFor(b *rush.Board, sel *rush.Car, a rushinput.Action, movableOnly bool) *rush.Car {
+	var ok func(*rush.Car) bool // nil: every vehicle is a candidate
+	if movableOnly {
+		ok = b.Movable
+	}
 	switch a {
 	case rushinput.SelectUp:
-		return b.Neighbour(sel, -1, 0)
+		return b.NeighbourAmong(sel, -1, 0, ok)
 	case rushinput.SelectDown:
-		return b.Neighbour(sel, 1, 0)
+		return b.NeighbourAmong(sel, 1, 0, ok)
 	case rushinput.SelectLeft:
-		return b.Neighbour(sel, 0, -1)
+		return b.NeighbourAmong(sel, 0, -1, ok)
 	case rushinput.SelectRight:
-		return b.Neighbour(sel, 0, 1)
+		return b.NeighbourAmong(sel, 0, 1, ok)
 	case rushinput.SelectPrev:
-		return b.Cycle(sel, -1)
+		return b.CycleAmong(sel, -1, ok)
 	case rushinput.SelectNext:
-		return b.Cycle(sel, 1)
+		return b.CycleAmong(sel, 1, ok)
 	}
 	return sel
 }
 
 // runTrial presents one puzzle and returns when it is solved (or when the
 // participant quits, in which case it returns control.EndLoop).
-func runTrial(exp *control.Experiment, in *rushinput.Reader, useMouse bool, trial int, p rush.Puzzle, nTrials int) error {
+func runTrial(exp *control.Experiment, in *rushinput.Reader, useMouse, movableOnly bool, trial int, p rush.Puzzle, nTrials int) error {
 	b := p.Fresh()
 	status := fmt.Sprintf("Puzzle %d/%d - free the RED car", trial, nTrials)
 
@@ -222,7 +230,7 @@ func runTrial(exp *control.Experiment, in *rushinput.Reader, useMouse bool, tria
 		for _, ev := range in.Drain() {
 			switch {
 			case ev.Action.IsSelect():
-				sel = selectionFor(b, sel, ev.Action)
+				sel = selectionFor(b, sel, ev.Action, movableOnly)
 				if sel == nil {
 					continue
 				}
@@ -333,7 +341,7 @@ func showScreen(exp *control.Experiment, in *rushinput.Reader, text string) erro
 // instructions builds the text of the first screen. The control list is
 // generated from the live bindings rather than written out, so a site that
 // remaps its response box shows the participant its own buttons.
-func instructions(nPuzzles int, in *rushinput.Reader, useMouse bool) string {
+func instructions(nPuzzles int, in *rushinput.Reader, useMouse, movableOnly bool) string {
 	var b strings.Builder
 	b.WriteString("RUSH HOUR\n\n" +
 		"On each puzzle, get the RED car out through the opening\n" +
@@ -349,6 +357,10 @@ func instructions(nPuzzles int, in *rushinput.Reader, useMouse bool) string {
 	if lines := in.Map.Legend(len(in.Devices()) > 0); len(lines) > 0 {
 		b.WriteString("One car is outlined in white; the arrows on it show which ways\n" +
 			"it can still move.\n\n")
+		if movableOnly {
+			b.WriteString("Cars that cannot move at all are skipped: choosing only ever\n" +
+				"lands on a car with at least one arrow.\n\n")
+		}
 		b.WriteString(strings.Join(lines, "\n"))
 		b.WriteString("\n\n")
 	}
@@ -411,6 +423,7 @@ func main() {
 	joySpec := flag.String("joy", "", "raw joystick-button bindings to override, by button number, e.g. \"0=back,1=forward\"")
 	useAxes := flag.Bool("axes", true, "let analog sticks, hats and triggers act as buttons (turn off for a response box whose unused axes drift)")
 	noMouse := flag.Bool("no-mouse", false, "hide the cursor and ignore clicks — the scanner case, where a stray click is not the participant")
+	movableOnly := flag.Bool("movable-only", true, "when choosing with buttons, skip vehicles that cannot move at all; -movable-only=false offers every vehicle, so the participant has to work out which are stuck")
 	inputDebug := flag.Bool("input-debug", false, "echo every key and button press to stderr, with the name -keys/-pad/-joy would use for it")
 
 	exp := control.NewExperimentFromFlags("Rush Hour", rushui.BgColor, rushui.TextColor, 28)
@@ -420,6 +433,13 @@ func main() {
 	// because NewExperimentFromFlags is what calls flag.Parse. A bad spec ends
 	// the run through exp.Fatal, which shuts SDL down first — the experiment
 	// already owns the window by this point.
+	// A stray word after the flags is almost always "-movable-only false":
+	// Go's flag package reads that as the bare flag (true) followed by an
+	// argument it ignores, so the session would silently run with the
+	// opposite setting. Refuse rather than guess.
+	if args := flag.Args(); len(args) > 0 {
+		exp.Fatal("Rush-Hour: unexpected argument %q (a boolean flag takes -flag=false, not -flag false)", args[0])
+	}
 	m := rushinput.DefaultMap()
 	if err := m.ApplyKeys(*keySpec); err != nil {
 		exp.Fatal("Rush-Hour: -keys: %v", err)
@@ -460,7 +480,7 @@ func main() {
 		if err := exp.Mouse.ShowCursor(useMouse); err != nil {
 			log.Printf("Warning: could not set cursor visibility: %v", err)
 		}
-		if err := showScreen(exp, in, instructions(len(puzzles), in, useMouse)); err != nil {
+		if err := showScreen(exp, in, instructions(len(puzzles), in, useMouse, *movableOnly)); err != nil {
 			return err
 		}
 
@@ -484,7 +504,7 @@ func main() {
 			}
 
 			exp.Blank(itiMS)
-			if err := runTrial(exp, in, useMouse, i+1, p, len(puzzles)); err != nil {
+			if err := runTrial(exp, in, useMouse, *movableOnly, i+1, p, len(puzzles)); err != nil {
 				return err
 			}
 			exp.Data.Save() // flush after every puzzle — ESC must not cost data

@@ -16,6 +16,10 @@ package rush
 // spatially — "the vehicle up from here" — which is how a player thinks about
 // the board and reaches a neighbour in one press. With only a pair of buttons
 // left over for selection, Cycle walks the vehicles in a fixed order instead.
+//
+// Both take an optional filter (NeighbourAmong, CycleAmong), so a session can
+// skip vehicles that cannot move at all — see Movable. That is not the default:
+// which vehicles are stuck is part of what the participant has to work out.
 
 // sidewaysPenalty is what Neighbour charges a candidate per cell of gap between
 // its band and the current vehicle's, in the half-cell units the scores use.
@@ -73,6 +77,13 @@ func gap(a0, a1, b0, b1 int) int {
 //
 // Returns from itself when the board has no other vehicle.
 func (b *Board) Neighbour(from *Car, dRow, dCol int) *Car {
+	return b.NeighbourAmong(from, dRow, dCol, nil)
+}
+
+// NeighbourAmong is Neighbour restricted to the vehicles ok accepts; a nil ok
+// accepts every vehicle. from itself is never a candidate, so it is returned
+// only when no acceptable vehicle exists.
+func (b *Board) NeighbourAmong(from *Car, dRow, dCol int, ok func(*Car) bool) *Car {
 	if from == nil {
 		return b.Target()
 	}
@@ -87,7 +98,7 @@ func (b *Board) Neighbour(from *Car, dRow, dCol int) *Car {
 	bestScore, wrapScore := 0, 0
 
 	for _, cand := range b.Cars {
-		if cand == from {
+		if cand == from || (ok != nil && !ok(cand)) {
 			continue
 		}
 		candRow2, candCol2 := cand.center2()
@@ -135,7 +146,16 @@ func (b *Board) Neighbour(from *Car, dRow, dCol int) *Car {
 // This is the selection order for a response box with too few buttons to spare
 // four of them on directions.
 func (b *Board) Cycle(from *Car, delta int) *Car {
-	if len(b.Cars) == 0 {
+	return b.CycleAmong(from, delta, nil)
+}
+
+// CycleAmong is Cycle restricted to the vehicles ok accepts; a nil ok accepts
+// every vehicle. The walk keeps going in the same direction past vehicles ok
+// rejects, so from itself — which may have just been stuck by its own move —
+// is the answer only when no other vehicle is acceptable.
+func (b *Board) CycleAmong(from *Car, delta int, ok func(*Car) bool) *Car {
+	n := len(b.Cars)
+	if n == 0 {
 		return nil
 	}
 	i := 0
@@ -145,6 +165,33 @@ func (b *Board) Cycle(from *Car, delta int) *Car {
 			break
 		}
 	}
-	n := len(b.Cars)
-	return b.Cars[((i+delta)%n+n)%n]
+	if ok == nil {
+		return b.Cars[((i+delta)%n+n)%n]
+	}
+	if delta == 0 {
+		return b.Cars[i]
+	}
+	step := 1
+	if delta < 0 {
+		step = -1
+	}
+	// |delta| acceptable vehicles onward, at most one lap.
+	want := delta * step
+	for k, found := 1, 0; k <= n; k++ {
+		c := b.Cars[((i+k*step)%n+n)%n]
+		if !ok(c) {
+			continue
+		}
+		if found++; found == want {
+			return c
+		}
+	}
+	return from
+}
+
+// Movable reports whether the vehicle can slide at least one cell in either
+// direction — whether it has any degree of freedom at all right now. It is
+// the filter for a session that skips stuck vehicles when choosing.
+func (b *Board) Movable(c *Car) bool {
+	return b.CanStep(c, Left) || b.CanStep(c, Right)
 }

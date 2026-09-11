@@ -153,3 +153,95 @@ func TestCycleWrapsBothWays(t *testing.T) {
 			string(got.Label), string(b.Cars[n-1].Label))
 	}
 }
+
+// With the movable-only filter, choosing never lands on a stuck vehicle, and
+// every movable vehicle is still reachable from every other one — by the
+// spatial presses and by the cycle alike — on every puzzle in the library.
+// Without that, a filter that skipped a vehicle also strands it.
+func TestMovableOnlyReachesEveryMovableVehicle(t *testing.T) {
+	puzzles, err := DefaultPuzzles()
+	if err != nil {
+		t.Fatalf("DefaultPuzzles: %v", err)
+	}
+	for _, p := range puzzles {
+		b := p.Fresh()
+		var movable []*Car
+		for _, c := range b.Cars {
+			if b.Movable(c) {
+				movable = append(movable, c)
+			}
+		}
+		if len(movable) == 0 {
+			t.Errorf("%s: fresh board has no movable vehicle", p.Name)
+			continue
+		}
+		for _, start := range b.Cars {
+			// Every press from anywhere — a stuck start included, since the
+			// selected vehicle can become stuck by its own move — lands on a
+			// movable vehicle.
+			for _, d := range directions {
+				if got := b.NeighbourAmong(start, d[0], d[1], b.Movable); !b.Movable(got) && got != start {
+					t.Errorf("%s: from %s pressing %v chose stuck %s", p.Name, string(start.Label), d, string(got.Label))
+				}
+			}
+			for _, delta := range []int{-1, 1} {
+				got := b.CycleAmong(start, delta, b.Movable)
+				if !b.Movable(got) && len(movable) > 0 {
+					t.Errorf("%s: cycling %+d from %s chose stuck %s", p.Name, delta, string(start.Label), string(got.Label))
+				}
+			}
+		}
+		// Reachability over the movable subgraph, spatially and by cycling.
+		for _, start := range movable {
+			reach := map[*Car]bool{start: true}
+			queue := []*Car{start}
+			for len(queue) > 0 {
+				cur := queue[0]
+				queue = queue[1:]
+				var next []*Car
+				for _, d := range directions {
+					next = append(next, b.NeighbourAmong(cur, d[0], d[1], b.Movable))
+				}
+				for _, n := range next {
+					if !reach[n] {
+						reach[n] = true
+						queue = append(queue, n)
+					}
+				}
+			}
+			if len(reach) != len(movable) {
+				t.Errorf("%s: spatially from %s only %d of %d movable vehicles reachable", p.Name, string(start.Label), len(reach), len(movable))
+			}
+		}
+		seen := map[*Car]bool{}
+		cur := movable[0]
+		for range movable {
+			seen[cur] = true
+			cur = b.CycleAmong(cur, 1, b.Movable)
+		}
+		if cur != movable[0] || len(seen) != len(movable) {
+			t.Errorf("%s: cycling forward over %d movable vehicles visited %d and ended on %s", p.Name, len(movable), len(seen), string(cur.Label))
+		}
+	}
+}
+
+// A filter that rejects everything but the current vehicle leaves the
+// selection where it is, rather than crashing or picking a rejected one.
+func TestAmongWithNothingAcceptableStays(t *testing.T) {
+	b, err := ParseBoard("BCCCoo BoooDo oAAEDo oooEoo FFoEoo ooGGGo")
+	if err != nil {
+		t.Fatalf("ParseBoard: %v", err)
+	}
+	from := b.Cars[0]
+	none := func(*Car) bool { return false }
+	if got := b.CycleAmong(from, 1, none); got != from {
+		t.Errorf("CycleAmong with nothing acceptable moved to %s", string(got.Label))
+	}
+	if got := b.NeighbourAmong(from, 0, 1, none); got != from {
+		t.Errorf("NeighbourAmong with nothing acceptable moved to %s", string(got.Label))
+	}
+	// Unfiltered, the two are exactly Cycle and Neighbour.
+	if got, want := b.CycleAmong(from, -1, nil), b.Cycle(from, -1); got != want {
+		t.Errorf("CycleAmong(nil) = %s, Cycle = %s", string(got.Label), string(want.Label))
+	}
+}

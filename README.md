@@ -166,6 +166,18 @@ keys `1 2 3 4` fall back to a sequential order instead: `1`/`2` slide, `3`/`4`
 step through the vehicles in reading order. That is a complete interface on its
 own.
 
+By default, both the spatial presses and the `3`/`4` cycle skip any vehicle
+that cannot move in either direction right now, so choosing only ever lands on
+a car with at least one arrow, and the instruction screen says so. Run with
+`-movable-only=false` (the `=` is required for a Go boolean flag; `=0` also
+works) to offer every vehicle, stuck ones included. The two are different
+tasks: working out which cars are stuck is part of the search, and the default
+hands the participant that answer. Keep the setting the same across the
+sessions you mean to compare; it is recorded with the rest of the command line
+in the session's `-info.txt` (`e cmdline:`).
+`TestMovableOnlyReachesEveryMovableVehicle` checks every movable car stays
+reachable under the default, on every puzzle.
+
 #### Wiring up a response box
 
 Most MRI/MEG response boxes enumerate as a **USB keyboard** and send fixed
@@ -199,6 +211,7 @@ rushinput: key "7" — not bound
 | `-joy <spec>` | raw joystick buttons, by number from 0 |
 | `-axes=false` | ignore sticks, hats and triggers — for a box whose unused axes drift |
 | `-no-mouse` | hide the cursor and ignore clicks |
+| `-movable-only=false` | let choosing land on cars that cannot move (default: they are skipped, see below) |
 | `-input-debug` | echo every press to stderr |
 
 A spec is a comma-separated list of `control=action` pairs applied **on top of**
