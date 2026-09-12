@@ -23,6 +23,7 @@ from .baselines import run_optimal, run_random
 from .binary import BinaryNotFound, find_binary
 from .engine import CommandFailed, Engine, EngineDied, EngineError, ProtocolError
 from .env import REWARD_SCHEMES, RushHourEnv
+from .human import DEFAULT_KEYS, META_ACTIONS, RushHourHumanEnv
 from .obs import OBS_MODES
 from .vector_env import RushHourVectorEnv
 
@@ -40,12 +41,15 @@ __all__ = [
     "run_random",
     "OBS_MODES",
     "REWARD_SCHEMES",
+    "RushHourHumanEnv",
+    "META_ACTIONS",
+    "DEFAULT_KEYS",
     "register",
 ]
 
 # Also the Rush-Hour release tag (v<version>) whose rushhour-env this package
 # fetches when no binary is at hand -- keep it equal to the tag being cut.
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 # Step budgets. Rush Hour has no dead ends, so an episode that is not solved
 # ends only by truncation, and the budget is the only thing standing between a
@@ -60,6 +64,15 @@ _SPECS = (
         kwargs={"min_moves_range": (0, 12)},
     ),
     dict(id="RushHourFixed-v0", max_episode_steps=100, kwargs={"puzzle": "p02"}),
+    # A person plays this one (see human.py): the experiment program's
+    # controls, picture and trial flow, and no step budget -- a participant
+    # on a hard puzzle must not be cut off.
+    dict(
+        id="RushHourHuman-v0",
+        entry_point="rushhour_gym.human:RushHourHumanEnv",
+        max_episode_steps=None,
+        kwargs={},
+    ),
 )
 
 
@@ -68,11 +81,11 @@ def register() -> None:
     for spec in _SPECS:
         if spec["id"] in gymnasium.registry:
             continue
-        gymnasium.register(
-            entry_point="rushhour_gym.env:RushHourEnv",
-            vector_entry_point="rushhour_gym.vector_env:RushHourVectorEnv",
+        gymnasium.register(**{
+            "entry_point": "rushhour_gym.env:RushHourEnv",
+            "vector_entry_point": "rushhour_gym.vector_env:RushHourVectorEnv",
             **spec,
-        )
+        })
 
 
 register()

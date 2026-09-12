@@ -62,6 +62,7 @@ match, and publishes the package to PyPI after the archives.
 | `RushHour-v0` | all 49 | 500 |
 | `RushHour-Easy-v0` | optimum ≤ 12 moves | 200 |
 | `RushHourFixed-v0` | `p02`, the classic board | 100 |
+| `RushHourHuman-v0` | as configured; a *person* plays (see below) | none |
 
 **Action space** — `Discrete(32)`: `action = slot * 2 + direction`, direction 0
 being left/up and 1 right/down. The vehicle moves exactly one cell, or nothing
@@ -103,6 +104,46 @@ for.
 dead ends, since every move is reversible. An unsolved episode therefore ends
 only by `TimeLimit` truncation, which is why a bare `RushHourEnv()` never
 truncates while the registered ids do.
+
+## A person at the board — `RushHourHuman-v0`
+
+`Discrete(32)` names a vehicle and a direction outright; a person with four
+buttons cannot. `RushHourHuman-v0` (`rushhour_gym.human.RushHourHumanEnv`) is
+the experiment program's own interface as an environment, so that a harness
+which presents games to participants needs nothing but a keymap:
+
+```python
+env = gym.make("RushHourHuman-v0", puzzle_order="library", n_trials=12)
+obs, info = env.reset(seed=0)
+frame = env.render()                      # (768, 1024, 3), rushui's picture
+obs, r, done, _, info = env.step(rushhour_gym.human.SELECT_NEXT)
+```
+
+* **Actions**: `Discrete(8)`, the meta-actions of the program's `rushinput`:
+  choose the car above/below/left/right (spatial, the gamepad d-pad), the
+  previous/next car (the four-button box and the arrow keys), slide the chosen
+  car back/forward. `DEFAULT_KEYS` is the program's keyboard map by key name.
+  Choosing is local; a slide becomes the engine's action (`info["env_action"]`).
+  Selection follows `rush.Board` (`Neighbour`, `Cycle`), and `movable_only`
+  (default on, as in the program) skips cars that cannot move.
+* **Rendering**: `rgb_array`, the same picture the program draws — white
+  outline on the chosen car, a white arrow at each end it can still slide
+  towards, status line. Text needs pygame or Pillow.
+* **Trial flow** (`paced`, on by default when a puzzle sequence is given):
+  "Puzzle *i* of *N*, press any key" before every puzzle but the first, a
+  blank interval (`iti`, 0.8 s), the board, a "PUZZLE SOLVED!" hold
+  (`solved_feedback`, 1.2 s). Time-driven transitions happen in `render()`,
+  so keep rendering between presses.
+* **Puzzles**: `puzzle_order="library"` (easiest first, what the program's
+  `-n` presents) or `puzzle_indices=[...]`; otherwise the seeded draw from
+  the pool, as `RushHour-v0`.
+* **`info`** carries the columns of the program's results file: `event`
+  (`trial_start`/`start`/`select`/`move`/`blocked`/`trial_end`/`ignored`),
+  `trial`, `puzzle`, `min_moves`, `car`, `orientation`, `from_*`/`to_*`,
+  `n_slides`, `solved`, `t_ms`, `trial_ms`, plus `env_action`, `selected`,
+  `moved`, `illegal`, `phase`.
+
+No step budget: a participant on a hard puzzle must not be cut off.
 
 ## Vector environments
 
