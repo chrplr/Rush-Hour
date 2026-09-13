@@ -78,7 +78,7 @@ def binary():
 def paced_env(binary):
     """Fresh per test: a paced env counts trials, so a second reset on a shared
     one would rightly show the ready screen."""
-    env = gym.make("RushHourHuman-v0", binary=binary, puzzle_order="library", n_trials=2,
+    env = gym.make("RushHourHuman-v0", binary=binary, puzzle_order="library",
                    iti=0.05, solved_feedback=0.05)
     yield env
     env.close()
@@ -143,7 +143,7 @@ def test_hold_then_ready_then_grace_then_interval(paced_env):
     solve(env)
     solved_frame = env.render()
     _obs, info = env.reset(seed=1)
-    assert info["puzzle_index"] == 1 and info["trial"] == 2
+    assert info["puzzle_index"] == 1
     assert u.phase == H.PHASE_SOLVED and (env.render() == solved_frame).all()
     time.sleep(0.06)
     env.render()

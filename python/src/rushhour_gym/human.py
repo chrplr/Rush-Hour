@@ -24,7 +24,7 @@ harness, say -- needs nothing but a keymap:
   the status line. Text needs pygame or Pillow; without either the frames
   carry no text.
 * **Trial flow**, when ``paced``: before every puzzle but the first a
-  self-paced "Puzzle i of N, press any key" screen, then a blank interval
+  self-paced "press any key" screen, then a blank interval
   (``iti``), the board, and after a solve a "PUZZLE SOLVED!" hold
   (``solved_feedback``). Time-driven transitions happen in ``render``, so a
   harness must keep calling it between key presses (an idle redraw); keys in
@@ -37,11 +37,14 @@ harness, say -- needs nothing but a keymap:
   env does. ``paced`` defaults to on exactly when a sequence is given.
 * **info** carries the columns of the program's results file
   (``internal/rushlog``): ``event`` (``trial_start``, ``start``, ``select``,
-  ``move``, ``blocked``, ``trial_end``, ``ignored``, ``noop``), ``trial``,
-  ``puzzle``, ``puzzle_index``, ``min_moves``, ``car``, ``orientation``,
+  ``move``, ``blocked``, ``trial_end``, ``ignored``, ``noop``), ``puzzle``,
+  ``puzzle_index``, ``min_moves``, ``car``, ``orientation``,
   ``from_row``/``from_col``/``to_row``/``to_col``, ``n_slides``, ``solved``,
   ``t_ms`` (since the board appeared), ``trial_ms`` (at ``trial_end``),
-  plus ``env_action``, ``selected``, ``moved``, ``illegal``, ``phase``.
+  plus ``env_action``, ``selected``, ``moved``, ``illegal``, ``phase``. The
+  results file's ``trial`` counter is not among them: which puzzle is which
+  trial is the harness's to know (it built the sequence), so neither the
+  board nor the ready screen numbers the puzzle.
 
 Episodes end only by solving; there is no step budget here, so
 ``RushHourHuman-v0`` registers with none -- a participant on a hard puzzle
@@ -145,7 +148,6 @@ class RushHourHumanEnv(gymnasium.Env):
         paced: bool | None = None,
         iti: float = 0.8,
         solved_feedback: float = 1.2,
-        n_trials: int | None = None,
         render_mode: str | None = "rgb_array",
         binary: str | os.PathLike[str] | None = None,
         puzzle_file: str | os.PathLike[str] | None = None,
@@ -180,7 +182,6 @@ class RushHourHumanEnv(gymnasium.Env):
         self.paced = bool(self._sequence is not None if paced is None else paced)
         self.iti = float(iti)
         self.solved_feedback = float(solved_feedback)
-        self.n_trials = int(n_trials) if n_trials else 0
 
         self._episode = -1
         self._cars: list[dict[str, Any]] = []
@@ -285,13 +286,10 @@ class RushHourHumanEnv(gymnasium.Env):
                 self._solved_frame = self._draw_board(None, "PUZZLE SOLVED!")
             return self._solved_frame
         if self._phase == PHASE_READY:
-            n = f" of {self.n_trials}" if self.n_trials else ""
-            return self._draw_screen([f"Puzzle {self._episode + 1}{n}", "",
-                                      "Press any key or button to start."])
+            return self._draw_screen(["Press any key or button to start."])
         if self._phase == PHASE_ITI:
             return self._draw_screen([])
-        n = f"/{self.n_trials}" if self.n_trials else ""
-        return self._draw_board(self._selected_car(), f"Puzzle {self._episode + 1}{n} - free the RED car")
+        return self._draw_board(self._selected_car(), "free the RED car")
 
     def close(self):
         self.env.close()
@@ -396,7 +394,6 @@ class RushHourHumanEnv(gymnasium.Env):
         out = dict(info)
         out["event"] = self._event
         out["phase"] = self._phase
-        out["trial"] = self._episode + 1
         out["selected"] = int(self._selected)
         out.setdefault("env_action", NOOP)
         out.setdefault("moved", False)

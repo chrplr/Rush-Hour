@@ -113,7 +113,7 @@ the experiment program's own interface as an environment, so that a harness
 which presents games to participants needs nothing but a keymap:
 
 ```python
-env = gym.make("RushHourHuman-v0", puzzle_order="library", n_trials=12)
+env = gym.make("RushHourHuman-v0", puzzle="p07")
 obs, info = env.reset(seed=0)
 frame = env.render()                      # (768, 1024, 3), rushui's picture
 obs, r, done, _, info = env.step(rushhour_gym.human.SELECT_NEXT)
@@ -130,7 +130,7 @@ obs, r, done, _, info = env.step(rushhour_gym.human.SELECT_NEXT)
   outline on the chosen car, a white arrow at each end it can still slide
   towards, status line. Text needs pygame or Pillow.
 * **Trial flow** (`paced`, on by default when a puzzle sequence is given):
-  "Puzzle *i* of *N*, press any key" before every puzzle but the first, a
+  "press any key" before every puzzle but the first, a
   blank interval (`iti`, 0.8 s), the board, a "PUZZLE SOLVED!" hold
   (`solved_feedback`, 1.2 s). Time-driven transitions happen in `render()`,
   so keep rendering between presses.
@@ -139,9 +139,11 @@ obs, r, done, _, info = env.step(rushhour_gym.human.SELECT_NEXT)
   the pool, as `RushHour-v0`.
 * **`info`** carries the columns of the program's results file: `event`
   (`trial_start`/`start`/`select`/`move`/`blocked`/`trial_end`/`ignored`),
-  `trial`, `puzzle`, `min_moves`, `car`, `orientation`, `from_*`/`to_*`,
+  `puzzle`, `min_moves`, `car`, `orientation`, `from_*`/`to_*`,
   `n_slides`, `solved`, `t_ms`, `trial_ms`, plus `env_action`, `selected`,
-  `moved`, `illegal`, `phase`.
+  `moved`, `illegal`, `phase`. Not the file's `trial` counter: the harness
+  that built the sequence knows which puzzle is which trial, so neither the
+  board nor the ready screen numbers it.
 
 No step budget: a participant on a hard puzzle must not be cut off.
 
