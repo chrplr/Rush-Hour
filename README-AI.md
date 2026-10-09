@@ -386,9 +386,11 @@ episode is a trial and each of its actions is a click.
 
 A participant playing with a response box or a gamepad rather than a mouse
 writes the same rows too: a move is a vehicle and a direction whatever named it.
-Such a file has one extra event kind an agent never emits, `select`, for a press
-that moved the participant's selection from one vehicle to another without
-moving the board. Filter it out and the file is shaped exactly like this one.
+Such a file has two extra event kinds an agent never emits: `select`, for a
+press that moved the participant's selection from one vehicle to another
+without moving the board, and `wrong_axis`, for a directional press across the
+selected vehicle's axis, which moves nothing. Filter them out and the file is
+shaped exactly like this one.
 
 What an agent cannot produce is hesitation. There is no thinking time between
 its rows, so the timing columns of an agent run mean "when the request arrived"

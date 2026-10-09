@@ -100,6 +100,11 @@ func (s *Session) Clicks() int {
 // file.
 func (s *Session) Selects() int { return s.count(rushlog.EventSelect) }
 
+// WrongAxis counts the directional presses made across the selected vehicle's
+// axis, which moved nothing (rushlog.EventWrongAxis). Like Selects it is 0 for
+// a mouse session and for an agent's file.
+func (s *Session) WrongAxis() int { return s.count(rushlog.EventWrongAxis) }
+
 func (s *Session) count(kinds ...string) int {
 	var n int
 	for _, t := range s.Trials {

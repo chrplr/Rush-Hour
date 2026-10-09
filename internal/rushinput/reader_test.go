@@ -82,8 +82,8 @@ func want(t *testing.T, got []Action, expected ...Action) {
 
 func TestKeysProduceActions(t *testing.T) {
 	r := New(DefaultMap())
-	want(t, feed(r, keyDown(sdl.K_LEFT, 0), keyDown(sdl.K_1, 0), keyDown(sdl.K_2, 0)),
-		SelectPrev, MoveBack, MoveForward)
+	want(t, feed(r, keyDown(sdl.K_S, 0), keyDown(sdl.K_LEFT, 0), keyDown(sdl.K_1, 0), keyDown(sdl.K_2, 0)),
+		SelectPrev, SlideLeft, MoveBack, MoveForward)
 }
 
 func TestUnboundKeyProducesNothing(t *testing.T) {
@@ -127,7 +127,9 @@ func TestGamepadButtons(t *testing.T) {
 		padDown(sdl.GAMEPAD_BUTTON_DPAD_UP, 0),
 		padDown(sdl.GAMEPAD_BUTTON_LEFT_SHOULDER, 0),
 		padDown(sdl.GAMEPAD_BUTTON_RIGHT_SHOULDER, 0),
-	), SelectUp, MoveBack, MoveForward)
+		padDown(sdl.GAMEPAD_BUTTON_WEST, 0),
+		padDown(sdl.GAMEPAD_BUTTON_SOUTH, 0),
+	), SlideUp, SelectPrev, SelectNext, SlideLeft, SlideDown)
 }
 
 // A stick is a continuous control answering a discrete question: one push must
@@ -167,17 +169,18 @@ func TestAxesCanBeTurnedOff(t *testing.T) {
 		padAxis(sdl.GAMEPAD_AXIS_LEFTX, 32000),
 		joyHat(hatUp),
 		padDown(sdl.GAMEPAD_BUTTON_DPAD_UP, 0), // buttons keep working
-	), SelectUp)
+	), SlideUp)
 }
 
-func TestTriggersSlide(t *testing.T) {
+// The triggers walk the vehicles, like the shoulder buttons above them.
+func TestTriggersSelect(t *testing.T) {
 	r := New(DefaultMap())
 	want(t, feed(r,
 		padAxis(sdl.GAMEPAD_AXIS_LEFT_TRIGGER, 20000),
 		padAxis(sdl.GAMEPAD_AXIS_LEFT_TRIGGER, 30000), // held
 		padAxis(sdl.GAMEPAD_AXIS_LEFT_TRIGGER, 0),     // released
 		padAxis(sdl.GAMEPAD_AXIS_RIGHT_TRIGGER, 20000),
-	), MoveBack, MoveForward)
+	), SelectPrev, SelectNext)
 }
 
 func TestRawJoystickButtons(t *testing.T) {
@@ -208,7 +211,7 @@ func TestGamepadEventsAreNotCountedTwice(t *testing.T) {
 	want(t, feed(r,
 		padDown(sdl.GAMEPAD_BUTTON_LEFT_SHOULDER, 0),
 		joyDown(0), // the same physical press, seen as a raw joystick button
-	), MoveBack)
+	), SelectPrev)
 }
 
 // fakeGamepad claims every device is a recognised gamepad, so the raw joystick

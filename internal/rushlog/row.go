@@ -43,6 +43,14 @@ const (
 	// interface's counterpart to the mouse hover the old files could not
 	// record: the vehicles a participant considered and passed over.
 	EventSelect = "select"
+
+	// EventWrongAxis is a directional press across the selected vehicle's axis
+	// — left or right on a vertical vehicle, up or down on a horizontal one.
+	// Nothing moves, and from == to. Unlike EventClickBlocked the vehicle could
+	// not have gone that way on any board, so the row records a misreading of
+	// the vehicle (or a slip of the finger), not a blocked plan. Only a button
+	// session produces it, and mouse_x/mouse_y stay 0: no click is equivalent.
+	EventWrongAxis = "wrong_axis"
 )
 
 // Row is one line of the results file. The positional fields are -1 on rows

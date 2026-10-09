@@ -340,6 +340,50 @@ func TestSelectRowsAreReplayable(t *testing.T) {
 	}
 }
 
+// TestWrongAxisRowsAreReplayable covers the press a directional control makes
+// across the selected vehicle's axis. Like a select row it moves nothing, must
+// replay cleanly, must not count as a move or a click, and must still put its
+// vehicle where the board has it.
+func TestWrongAxisRowsAreReplayable(t *testing.T) {
+	s, err := ReadFile(fixture(t, 1))
+	if err != nil {
+		t.Fatalf("ReadFile: %v", err)
+	}
+	tr := s.Trials[0]
+	clicks := s.Clicks()
+
+	wrong := tr.Events[0]
+	wrong.Kind = rushlog.EventWrongAxis
+	wrong.ToR, wrong.ToC = wrong.FromR, wrong.FromC
+	tr.Events = append([]Event{wrong}, tr.Events...)
+
+	if n := s.WrongAxis(); n != 1 {
+		t.Errorf("WrongAxis() = %d after adding one wrong_axis row, want 1", n)
+	}
+	if n := s.Clicks(); n != clicks {
+		t.Errorf("a wrong_axis row changed Clicks(): %d, want %d", n, clicks)
+	}
+
+	r, err := Replay(tr, mustLibrary(t))
+	if err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+	if !r.OK() {
+		t.Errorf("a wrong_axis row was reported as a problem: %v", r.Problems)
+	}
+	if r.Slides != tr.MinMoves {
+		t.Errorf("a wrong_axis row changed the slide count: %d, want %d", r.Slides, tr.MinMoves)
+	}
+	tr.Events[0].FromR = (tr.Events[0].FromR + 3) % rush.GridSize
+	r2, err := Replay(tr, mustLibrary(t))
+	if err != nil {
+		t.Fatalf("Replay: %v", err)
+	}
+	if r2.OK() {
+		t.Error("a wrong_axis row recorded at the wrong position was not caught")
+	}
+}
+
 // TestReadsAFileWithoutSubjectID covers the other writer: goxpyriment prepends
 // subject_id, rushlog.Writer prepends subject_id, but a file hand-made from
 // rushlog.Columns alone has neither. Looking columns up by name is what makes

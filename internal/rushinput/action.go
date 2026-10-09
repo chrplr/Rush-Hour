@@ -11,9 +11,10 @@
 // box it is varies by site. Some enumerate as a USB keyboard and send fixed
 // characters; some enumerate as a joystick and send button numbers that mean
 // nothing outside that model; a piloting session at the desk uses a real
-// keyboard or a gamepad. All four produce the same nine actions here, and all
-// four are remappable from the command line, because the alternative — editing
-// the trial loop per site — is how a paradigm stops being the same paradigm.
+// keyboard or a gamepad. All four produce the same small set of actions here,
+// and all four are remappable from the command line, because the alternative —
+// editing the trial loop per site — is how a paradigm stops being the same
+// paradigm.
 package rushinput
 
 import "strings"
@@ -49,12 +50,25 @@ const (
 	MoveBack
 	MoveForward
 
+	// SlideLeft and friends slide the selected vehicle one cell in an absolute
+	// direction, and only along its own axis: left and right act on a
+	// horizontal vehicle, up and down on a vertical one, and a press across the
+	// axis moves nothing (see SlideDir). They cost four controls where
+	// MoveBack/MoveForward cost two, but each one means the same thing on
+	// screen whichever vehicle is selected — the arrow keys, a d-pad, or the
+	// X/Y/A/B diamond of a gamepad.
+	SlideLeft
+	SlideRight
+	SlideUp
+	SlideDown
+
 	// Confirm dismisses an instruction screen — the participant's "go on".
 	Confirm
 )
 
 // actionNames is the spelling used in the -keys/-pad/-joy specs and in the
-// on-screen legend. Lower case and one word, so a spec never needs quoting.
+// on-screen legend. Lower case and without spaces, so a spec never needs
+// quoting.
 var actionNames = map[Action]string{
 	None:        "none",
 	SelectUp:    "up",
@@ -65,6 +79,10 @@ var actionNames = map[Action]string{
 	SelectNext:  "next",
 	MoveBack:    "back",
 	MoveForward: "forward",
+	SlideLeft:   "slide-left",
+	SlideRight:  "slide-right",
+	SlideUp:     "slide-up",
+	SlideDown:   "slide-down",
 	Confirm:     "confirm",
 }
 
@@ -85,7 +103,44 @@ func (a Action) IsSelect() bool {
 }
 
 // IsMove reports whether the action slides the selected vehicle.
-func (a Action) IsMove() bool { return a == MoveBack || a == MoveForward }
+func (a Action) IsMove() bool {
+	switch a {
+	case MoveBack, MoveForward, SlideLeft, SlideRight, SlideUp, SlideDown:
+		return true
+	}
+	return false
+}
+
+// SlideDir returns the one-cell step a move action asks of a vehicle with the
+// given orientation: -1 towards column or row 0, +1 the other way — the values
+// of rush.Left and rush.Right. ok is false when the action does not apply: a
+// SlideLeft/SlideRight on a vertical vehicle, a SlideUp/SlideDown on a
+// horizontal one, or an action that is not a move at all.
+func (a Action) SlideDir(horizontal bool) (dir int, ok bool) {
+	switch a {
+	case MoveBack:
+		return -1, true
+	case MoveForward:
+		return 1, true
+	case SlideLeft, SlideRight:
+		if !horizontal {
+			return 0, false
+		}
+		if a == SlideLeft {
+			return -1, true
+		}
+		return 1, true
+	case SlideUp, SlideDown:
+		if horizontal {
+			return 0, false
+		}
+		if a == SlideUp {
+			return -1, true
+		}
+		return 1, true
+	}
+	return 0, false
+}
 
 // ParseAction is the inverse of Action.String. ok is false for an unknown name.
 func ParseAction(s string) (Action, bool) {
@@ -102,7 +157,8 @@ func ParseAction(s string) (Action, bool) {
 // error messages and -help text.
 func ActionNames() []string {
 	order := []Action{SelectUp, SelectDown, SelectLeft, SelectRight,
-		SelectPrev, SelectNext, MoveBack, MoveForward, Confirm}
+		SelectPrev, SelectNext, MoveBack, MoveForward,
+		SlideLeft, SlideRight, SlideUp, SlideDown, Confirm}
 	names := make([]string, len(order))
 	for i, a := range order {
 		names[i] = a.String()

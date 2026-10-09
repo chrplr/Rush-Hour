@@ -10,11 +10,14 @@ program's interface (``main.go``, ``rushinput``, ``rushui``) as a Gymnasium
 environment, so that a harness which presents games to participants -- an fMRI
 harness, say -- needs nothing but a keymap:
 
-* **Actions** are the eight meta-actions of ``rushinput.Action``: choose the
-  car above / below / left / right (spatial, what a gamepad d-pad does), the
-  previous / next car (the four-button box and the arrow keys), and slide the
-  chosen car back or forward. Choosing is local -- no engine step -- and a
-  slide becomes the engine's ``Discrete`` action, reported as ``env_action``.
+* **Actions** are the twelve meta-actions of ``rushinput.Action``: choose
+  the car above / below / left / right (spatial, what a gamepad stick does),
+  the previous / next car (``S``/``D``, the shoulder buttons, the four-button
+  box), slide the chosen car back or forward along its own axis (the box), and
+  slide it left / right / up / down (the arrow keys, X/Y/A/B) -- which acts
+  only along the car's axis: left/right on a vertical car moves nothing and
+  reports ``wrong_axis``. Choosing is local -- no engine step -- and a slide
+  becomes the engine's ``Discrete`` action, reported as ``env_action``.
   Selection follows ``rush.Board``: ``Neighbour`` for the spatial presses,
   ``Cycle`` for the sequential ones, and -- ``movable_only``, on by default as
   in the program -- both skip cars that cannot move at all.
@@ -37,7 +40,8 @@ harness, say -- needs nothing but a keymap:
   env does. ``paced`` defaults to on exactly when a sequence is given.
 * **info** carries the columns of the program's results file
   (``internal/rushlog``): ``event`` (``trial_start``, ``start``, ``select``,
-  ``move``, ``blocked``, ``trial_end``, ``ignored``, ``noop``), ``puzzle``,
+  ``move``, ``blocked``, ``wrong_axis``, ``trial_end``, ``ignored``,
+  ``noop``), ``puzzle``,
   ``puzzle_index``, ``min_moves``, ``car``, ``orientation``,
   ``from_row``/``from_col``/``to_row``/``to_col``, ``n_slides``, ``solved``,
   ``t_ms`` (since the board appeared), ``trial_ms`` (at ``trial_end``),
@@ -68,7 +72,8 @@ __all__ = [
     "META_ACTIONS",
     "DEFAULT_KEYS",
     "SELECT_UP", "SELECT_DOWN", "SELECT_LEFT", "SELECT_RIGHT",
-    "SELECT_PREV", "SELECT_NEXT", "MOVE_BACK", "MOVE_FORWARD", "NOOP",
+    "SELECT_PREV", "SELECT_NEXT", "MOVE_BACK", "MOVE_FORWARD",
+    "SLIDE_LEFT", "SLIDE_RIGHT", "SLIDE_UP", "SLIDE_DOWN", "NOOP",
 ]
 
 # ── Meta-actions (rushinput.Action) ──────────────────────────────────────────
@@ -76,20 +81,38 @@ __all__ = [
 SELECT_UP, SELECT_DOWN, SELECT_LEFT, SELECT_RIGHT = 0, 1, 2, 3
 SELECT_PREV, SELECT_NEXT = 4, 5
 MOVE_BACK, MOVE_FORWARD = 6, 7
+SLIDE_LEFT, SLIDE_RIGHT, SLIDE_UP, SLIDE_DOWN = 8, 9, 10, 11
 #: A step with no press: nothing happens, nothing is selected.
 NOOP = -1
-META_ACTIONS = ("up", "down", "left", "right", "prev", "next", "back", "forward")
+META_ACTIONS = ("up", "down", "left", "right", "prev", "next", "back", "forward",
+                "slide-left", "slide-right", "slide-up", "slide-down")
 
-#: rushinput.DefaultMap's keyboard, by key name: the four-button box on the
-#: arrows (left/right choose, up/down slide), 1 2 3 4 as the box sends them,
-#: and , . for the slides.
+#: rushinput.DefaultMap's keyboard, by key name: S and D choose, each arrow
+#: slides the chosen car its way (along its own axis only), 1 2 3 4 as the
+#: four-button box sends them, and , . for back/forward.
 DEFAULT_KEYS: dict[str, int] = {
-    "LEFT": SELECT_PREV, "RIGHT": SELECT_NEXT,
-    "UP": MOVE_BACK, "DOWN": MOVE_FORWARD,
+    "S": SELECT_PREV, "D": SELECT_NEXT,
+    "LEFT": SLIDE_LEFT, "RIGHT": SLIDE_RIGHT,
+    "UP": SLIDE_UP, "DOWN": SLIDE_DOWN,
     "3": SELECT_PREV, "4": SELECT_NEXT,
     "1": MOVE_BACK, "2": MOVE_FORWARD,
     "COMMA": MOVE_BACK, "PERIOD": MOVE_FORWARD,
 }
+
+
+def slide_dir(meta: int, horizontal: bool) -> int | None:
+    """rushinput.Action.SlideDir: the one-cell step (-1 towards index 0, +1
+    the other way) a move meta-action asks of a car, or None when it is across
+    the car's axis."""
+    if meta == MOVE_BACK:
+        return -1
+    if meta == MOVE_FORWARD:
+        return 1
+    if meta in (SLIDE_LEFT, SLIDE_RIGHT):
+        return (-1 if meta == SLIDE_LEFT else 1) if horizontal else None
+    if meta in (SLIDE_UP, SLIDE_DOWN):
+        return None if horizontal else (-1 if meta == SLIDE_UP else 1)
+    return None
 
 # rush.Board.Neighbour's scoring constant (select.go: 2 * GridSize).
 _GRID = 6
@@ -258,7 +281,14 @@ class RushHourHumanEnv(gymnasium.Env):
             self._event = "select"
             return self._ui_only()
 
-        discrete = int(self._selected) * 2 + (0 if meta == MOVE_BACK else 1)
+        car = self._selected_car()
+        direction = slide_dir(meta, bool(car["horizontal"])) if car else None
+        if direction is None:
+            # An arrow across the car's axis, as main.go logs it: nothing
+            # moves, no engine step, but the press is reported.
+            self._event = "wrong_axis"
+            return self._ui_only()
+        discrete = int(car["slot"]) * 2 + (0 if direction < 0 else 1)
         obs, reward, terminated, truncated, info = self.env.step(discrete)
         self._ingest(obs, info)
         # Keep the highlight on the car just acted on when the engine names a
@@ -404,7 +434,7 @@ class RushHourHumanEnv(gymnasium.Env):
             car = self._by_slot.get(int(info.get("slot", -1)))
             frm = tuple(int(x) for x in info.get("from", frm))
             to = tuple(int(x) for x in info.get("to", to))
-        elif self._event == "select":
+        elif self._event in ("select", "wrong_axis"):
             car = self._selected_car()
             if car is not None:
                 frm = to = (car["row"], car["col"])

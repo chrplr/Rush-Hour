@@ -27,32 +27,36 @@ type Map struct {
 // It is chosen so that the three plausible pieces of hardware all work without
 // configuration:
 //
-//   - A gamepad gets the fast scheme: the d-pad (or the left stick) walks the
-//     selection over the board, the two shoulder buttons slide the selected
-//     vehicle back and forward. X and B duplicate the shoulders for players who
-//     reach for the face buttons, and the triggers duplicate them again.
+//   - A keyboard gets the direct scheme: 's' and 'd' walk the vehicles in
+//     order, and each arrow key slides the selected vehicle that way — left
+//     and right for a horizontal vehicle, up and down for a vertical one. An
+//     arrow across the vehicle's axis moves nothing, so what a key does is
+//     always what it points at.
+//
+//   - A gamepad gets the same scheme on its own layout: the shoulder buttons
+//     (and the triggers, see Reader) walk the vehicles, and the face-button
+//     diamond slides — X left, B right, Y up, A down, by position rather than
+//     by the letter printed on it — with the d-pad duplicating the diamond. The
+//     left stick walks the selection spatially over the board.
 //
 //   - A four-button response box sending "1 2 3 4" — the common MRI case — gets
-//     the reduced scheme: 1 and 2 slide, 3 and 4 walk the vehicles in order.
-//     Four buttons cannot carry four directions *and* two slides, so selection
-//     falls back from spatial to sequential rather than losing a direction.
-//
-//   - A keyboard gets that same reduced scheme on the arrow keys — left and
-//     right walk the vehicles, up and down slide — so what the experimenter
-//     rehearses at the desk is what the participant gets on the box. ',' and
-//     '.' duplicate the slides. Pilots preferred this to a spatial arrow
-//     scheme, which is still one -keys flag away:
-//     -keys "up=up,down=down,left=left,right=right".
+//     the reduced scheme: 1 and 2 slide back and forward along the selected
+//     vehicle's own axis, 3 and 4 walk the vehicles in order. Four buttons
+//     cannot carry four directions *and* two choices, so sliding falls back
+//     from absolute directions to the vehicle's axis. ',' and '.' duplicate
+//     the two slides on the keyboard.
 //
 // A box that sends other characters (fORP's "b y g r", say) needs one -keys
 // flag; a box that enumerates as a joystick needs one -joy flag.
 func DefaultMap() Map {
 	return Map{
 		Keys: map[sdl.Keycode]Action{
-			sdl.K_UP:       MoveBack,
-			sdl.K_DOWN:     MoveForward,
-			sdl.K_LEFT:     SelectPrev,
-			sdl.K_RIGHT:    SelectNext,
+			sdl.K_S:        SelectPrev,
+			sdl.K_D:        SelectNext,
+			sdl.K_LEFT:     SlideLeft,
+			sdl.K_RIGHT:    SlideRight,
+			sdl.K_UP:       SlideUp,
+			sdl.K_DOWN:     SlideDown,
 			sdl.K_COMMA:    MoveBack,
 			sdl.K_PERIOD:   MoveForward,
 			sdl.K_1:        MoveBack,
@@ -68,15 +72,16 @@ func DefaultMap() Map {
 			sdl.K_KP_ENTER: Confirm,
 		},
 		Pad: map[sdl.GamepadButton]Action{
-			sdl.GAMEPAD_BUTTON_DPAD_UP:        SelectUp,
-			sdl.GAMEPAD_BUTTON_DPAD_DOWN:      SelectDown,
-			sdl.GAMEPAD_BUTTON_DPAD_LEFT:      SelectLeft,
-			sdl.GAMEPAD_BUTTON_DPAD_RIGHT:     SelectRight,
-			sdl.GAMEPAD_BUTTON_LEFT_SHOULDER:  MoveBack,
-			sdl.GAMEPAD_BUTTON_RIGHT_SHOULDER: MoveForward,
-			sdl.GAMEPAD_BUTTON_WEST:           MoveBack,
-			sdl.GAMEPAD_BUTTON_EAST:           MoveForward,
-			sdl.GAMEPAD_BUTTON_SOUTH:          Confirm,
+			sdl.GAMEPAD_BUTTON_LEFT_SHOULDER:  SelectPrev,
+			sdl.GAMEPAD_BUTTON_RIGHT_SHOULDER: SelectNext,
+			sdl.GAMEPAD_BUTTON_WEST:           SlideLeft,
+			sdl.GAMEPAD_BUTTON_EAST:           SlideRight,
+			sdl.GAMEPAD_BUTTON_NORTH:          SlideUp,
+			sdl.GAMEPAD_BUTTON_SOUTH:          SlideDown,
+			sdl.GAMEPAD_BUTTON_DPAD_LEFT:      SlideLeft,
+			sdl.GAMEPAD_BUTTON_DPAD_RIGHT:     SlideRight,
+			sdl.GAMEPAD_BUTTON_DPAD_UP:        SlideUp,
+			sdl.GAMEPAD_BUTTON_DPAD_DOWN:      SlideDown,
 			sdl.GAMEPAD_BUTTON_START:          Confirm,
 		},
 		// A raw joystick has no standard layout, so the only honest default is
@@ -308,6 +313,7 @@ func PadButtonNames() []string {
 var legendOrder = []Action{
 	SelectUp, SelectDown, SelectLeft, SelectRight,
 	SelectPrev, SelectNext, MoveBack, MoveForward,
+	SlideLeft, SlideRight, SlideUp, SlideDown,
 }
 
 // legendText is what each action is called for a participant, who has no reason
@@ -321,6 +327,10 @@ var legendText = map[Action]string{
 	SelectNext:  "choose the next car",
 	MoveBack:    "slide it left, or up if it is vertical",
 	MoveForward: "slide it right, or down if it is vertical",
+	SlideLeft:   "slide a horizontal car left",
+	SlideRight:  "slide a horizontal car right",
+	SlideUp:     "slide a vertical car up",
+	SlideDown:   "slide a vertical car down",
 }
 
 // Legend describes the live bindings, one line per action that has any, for the

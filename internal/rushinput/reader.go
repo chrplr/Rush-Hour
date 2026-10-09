@@ -199,10 +199,13 @@ func (r *Reader) gamepadAxis(ae *sdl.GamepadAxisEvent) {
 	case sdl.GAMEPAD_AXIS_LEFTY, sdl.GAMEPAD_AXIS_RIGHTY:
 		// SDL's Y grows downwards.
 		r.axisEdge(key, ae.Value, SelectUp, SelectDown, ae.Timestamp)
+	// The triggers do what the shoulder buttons do by default — walk the
+	// vehicles — because which of the two pairs a participant calls the
+	// "front buttons" depends on the pad in their hands.
 	case sdl.GAMEPAD_AXIS_LEFT_TRIGGER:
-		r.triggerEdge(key, ae.Value, MoveBack, ae.Timestamp)
+		r.triggerEdge(key, ae.Value, SelectPrev, ae.Timestamp)
 	case sdl.GAMEPAD_AXIS_RIGHT_TRIGGER:
-		r.triggerEdge(key, ae.Value, MoveForward, ae.Timestamp)
+		r.triggerEdge(key, ae.Value, SelectNext, ae.Timestamp)
 	}
 }
 

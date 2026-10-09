@@ -197,9 +197,54 @@ def test_cycle_skips_stuck_cars_and_movable_only_off_visits_all(binary):
         env.close()
 
 
-def test_default_keys_carry_the_four_button_scheme():
+def test_default_keys_match_the_program():
     keys = H.DEFAULT_KEYS
-    assert keys["LEFT"] == H.SELECT_PREV and keys["RIGHT"] == H.SELECT_NEXT
-    assert keys["UP"] == H.MOVE_BACK and keys["DOWN"] == H.MOVE_FORWARD
+    assert keys["S"] == H.SELECT_PREV and keys["D"] == H.SELECT_NEXT
+    assert keys["LEFT"] == H.SLIDE_LEFT and keys["RIGHT"] == H.SLIDE_RIGHT
+    assert keys["UP"] == H.SLIDE_UP and keys["DOWN"] == H.SLIDE_DOWN
     assert keys["1"] == H.MOVE_BACK and keys["4"] == H.SELECT_NEXT
     assert set(keys.values()) <= set(range(len(H.META_ACTIONS)))
+
+
+def test_slide_dir_acts_only_along_the_axis():
+    assert H.slide_dir(H.SLIDE_LEFT, True) == -1 and H.slide_dir(H.SLIDE_RIGHT, True) == 1
+    assert H.slide_dir(H.SLIDE_UP, False) == -1 and H.slide_dir(H.SLIDE_DOWN, False) == 1
+    for meta in (H.SLIDE_LEFT, H.SLIDE_RIGHT):
+        assert H.slide_dir(meta, False) is None
+    for meta in (H.SLIDE_UP, H.SLIDE_DOWN):
+        assert H.slide_dir(meta, True) is None
+    for hz in (True, False):
+        assert H.slide_dir(H.MOVE_BACK, hz) == -1 and H.slide_dir(H.MOVE_FORWARD, hz) == 1
+
+
+def test_directional_slides_and_wrong_axis(binary):
+    for want_hz in (False, True):
+        env = gym.make("RushHourHuman-v0", binary=binary, puzzle_order="library", paced=False)
+        try:
+            u = env.unwrapped
+            # The first library puzzle with a movable car of this orientation.
+            for _ in range(10):
+                env.reset(seed=0)
+                cars = [c for c in u._cars if c["horizontal"] == want_hz and any(u._can_move(c))]
+                if cars:
+                    break
+            car = cars[0]
+            u._selected = car["slot"]
+            before = (car["row"], car["col"])
+
+            across = H.SLIDE_UP if want_hz else H.SLIDE_LEFT
+            _o, _r, _t, _tr, info = env.step(across)
+            assert info["event"] == "wrong_axis" and info["env_action"] == H.NOOP
+            assert info["car"] == car["label"] and not info["moved"]
+            assert (info["from_row"], info["from_col"]) == (info["to_row"], info["to_col"]) == before
+
+            back, _forward = u._can_move(car)
+            if want_hz:
+                meta = H.SLIDE_LEFT if back else H.SLIDE_RIGHT
+            else:
+                meta = H.SLIDE_UP if back else H.SLIDE_DOWN
+            _o, _r, _t, _tr, info = env.step(meta)
+            assert info["event"] in ("move", "trial_end") and info["moved"]
+            assert info["env_action"] == car["slot"] * 2 + (0 if back else 1)
+        finally:
+            env.close()

@@ -119,10 +119,13 @@ frame = env.render()                      # (768, 1024, 3), rushui's picture
 obs, r, done, _, info = env.step(rushhour_gym.human.SELECT_NEXT)
 ```
 
-* **Actions**: `Discrete(8)`, the meta-actions of the program's `rushinput`:
-  choose the car above/below/left/right (spatial, the gamepad d-pad), the
-  previous/next car (the four-button box and the arrow keys), slide the chosen
-  car back/forward. `DEFAULT_KEYS` is the program's keyboard map by key name.
+* **Actions**: `Discrete(12)`, the meta-actions of the program's `rushinput`:
+  choose the car above/below/left/right (spatial, the gamepad stick), the
+  previous/next car (`S`/`D`, the shoulder buttons, the four-button box),
+  slide the chosen car back/forward along its axis (the box), and slide it
+  left/right/up/down (the arrow keys, X/Y/A/B) — only along its own axis; a
+  press across it moves nothing and reports `event="wrong_axis"`.
+  `DEFAULT_KEYS` is the program's keyboard map by key name.
   Choosing is local; a slide becomes the engine's action (`info["env_action"]`).
   Selection follows `rush.Board` (`Neighbour`, `Cycle`), and `movable_only`
   (default on, as in the program) skips cars that cannot move.
@@ -138,7 +141,7 @@ obs, r, done, _, info = env.step(rushhour_gym.human.SELECT_NEXT)
   `-n` presents) or `puzzle_indices=[...]`; otherwise the seeded draw from
   the pool, as `RushHour-v0`.
 * **`info`** carries the columns of the program's results file: `event`
-  (`trial_start`/`start`/`select`/`move`/`blocked`/`trial_end`/`ignored`),
+  (`trial_start`/`start`/`select`/`move`/`blocked`/`wrong_axis`/`trial_end`/`ignored`),
   `puzzle`, `min_moves`, `car`, `orientation`, `from_*`/`to_*`,
   `n_slides`, `solved`, `t_ms`, `trial_ms`, plus `env_action`, `selected`,
   `moved`, `illegal`, `phase`. Not the file's `trial` counter: the harness

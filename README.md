@@ -141,34 +141,44 @@ buttons, and the two routes write the same rows.
 
 With buttons, **one vehicle is always selected** — outlined in white, with an
 arrow drawn at each end it can still move towards. Two controls step the
-selection through the vehicles; two slide the selected vehicle along its own
-axis.
+selection through the vehicles; the others slide the selected vehicle.
 
 | Action | Keyboard | Gamepad |
 |---|---|---|
-| choose the previous / next car | `←` / `→`, or `3` / `4` | — |
-| slide the selected car left (or up, if it is vertical) | `↑`, `,` or `1` | `L1`/`LB`, `X`, or the left trigger |
-| slide it right (or down) | `↓`, `.` or `2` | `R1`/`RB`, `B`, or the right trigger |
-| choose the car above / below / left / right | — | d-pad, or the left stick |
+| choose the previous / next car | `S` / `D`, or `3` / `4` | `L1`/`LB` / `R1`/`RB`, or the left / right trigger |
+| slide a horizontal car left / right | `←` / `→` | `X` / `B`, or d-pad left / right |
+| slide a vertical car up / down | `↑` / `↓` | `Y` / `A`, or d-pad up / down |
+| slide the car left-or-up / right-or-down (four-button box) | `1` / `2`, or `,` / `.` | — |
+| choose the car above / below / left / right | — | the left stick |
 | dismiss an instruction screen | any key | any button |
 
-This is the four-button scheme: an MRI response box sending `1 2 3 4` cannot
-carry four directions *and* two slides, so `1`/`2` slide and `3`/`4` step
-through the vehicles in reading order. The arrow keys carry the same scheme,
-laid out the way the box is, so what you rehearse at the desk is what the
-participant gets. Pilots preferred it to spatial arrows.
+The gamepad face buttons are bound by **position**, not by the letter printed
+on them: the left one slides left, the top one up, and so on — on an Xbox pad
+that is X, Y, B, A; on a Nintendo pad the letters differ but the diamond is
+the same.
 
-A gamepad has buttons to spare, so its d-pad selects **spatially**, not as a
-cursor walking over cells: pressing right on the red car selects the next car
-*on its own row*, not the nearer one a row up. A vehicle sharing the current
-row band (for a left/right press) or column band (for up/down) always wins
-over one that does not. When nothing lies that way the selection wraps to the
-far side, so a direction is never a press that does nothing, and every vehicle
-is reachable — over the whole 49-puzzle library, no vehicle is ever more than
-**4 presses** away from any other (`TestNeighbourReachesEveryVehicle`). To get
-spatial selection on the keyboard: `-keys "up=up,down=down,left=left,right=right"`.
+A direction only acts **along the vehicle's own axis**: `←`/`→` slide a
+horizontal car and do nothing to a vertical one, `↑`/`↓` the reverse. Such a
+press moves nothing, but it is still one row in the results file, with
+`event = wrong_axis` (from == to), so a participant misreading a vehicle's
+orientation leaves a trace.
 
-By default, both the spatial presses and the `3`/`4` cycle skip any vehicle
+The four-button scheme is kept for MRI response boxes sending `1 2 3 4`, which
+cannot carry four directions *and* two choices: `1`/`2` slide back and forward
+along the selected vehicle's own axis, and `3`/`4` step through the vehicles
+in reading order.
+
+The gamepad's left stick selects **spatially**, not as a cursor walking over
+cells: pushing right on the red car selects the next car *on its own row*, not
+the nearer one a row up. A vehicle sharing the current row band (for a
+left/right push) or column band (for up/down) always wins over one that does
+not. When nothing lies that way the selection wraps to the far side, so a
+direction is never a push that does nothing, and every vehicle is reachable —
+over the whole 49-puzzle library, no vehicle is ever more than **4 presses**
+away from any other (`TestNeighbourReachesEveryVehicle`). To get spatial
+selection on the keyboard too: `-keys "i=up,k=down,j=left,l=right"`.
+
+By default, both the spatial presses and the previous/next cycle skip any vehicle
 that cannot move in either direction right now, so choosing only ever lands on
 a car with at least one arrow, and the instruction screen says so. Run with
 `-movable-only=false` (the `=` is required for a Go boolean flag; `=0` also
@@ -217,7 +227,8 @@ rushinput: key "7" — not bound
 | `-input-debug` | echo every press to stderr |
 
 A spec is a comma-separated list of `control=action` pairs applied **on top of**
-the defaults; actions are `up down left right prev next back forward confirm`,
+the defaults; actions are `up down left right prev next back forward
+slide-left slide-right slide-up slide-down confirm`,
 and `none` unbinds. Put `clear` first to start from an empty table instead. The
 instruction screen is generated from the live bindings, so a remapped box shows
 the participant its own buttons rather than a fixed list that no longer matches.
@@ -290,7 +301,7 @@ One CSV row per **action**, plus a summary row per puzzle.
 |---|---|
 | `trial`, `puzzle` | Trial number (1-based) and puzzle name from the puzzle library |
 | `min_moves` | Length of the shortest solution for this puzzle |
-| `event` | `trial_start`, `click_move`, `click_blocked`, `click_empty`, `select`, `trial_end` |
+| `event` | `trial_start`, `click_move`, `click_blocked`, `click_empty`, `select`, `wrong_axis`, `trial_end` |
 | `t_ms` | Milliseconds from this trial's `trial_start` to this row |
 | `event_ts_ns` | Absolute timestamp on the session clock (ns) — **on every row** |
 | `mouse_x`, `mouse_y` | Cursor position, center-relative, +Y up |
@@ -316,6 +327,14 @@ selection from one vehicle to another without moving the board. It names the
 vehicle the selection landed on. That is the button interface's counterpart to
 the hover a mouse file cannot record — the vehicles a participant considered and
 passed over, and how long they hesitated before choosing.
+
+A button session can also write `wrong_axis`: a directional press across the
+selected vehicle's axis (`←`/`→` on a vertical car, `↑`/`↓` on a horizontal
+one). Nothing moves; the row names the selected vehicle with from == to, and
+`mouse_x`/`mouse_y` stay 0, since no click is equivalent. Unlike
+`click_blocked`, the vehicle could not have gone that way on any board.
+`rushhour-replay` checks these rows like `select` rows and counts them in its
+summary line.
 
 ### Timestamps, and synchronising with a scanner
 

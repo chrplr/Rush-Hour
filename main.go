@@ -21,13 +21,15 @@
 //
 //   - With buttons, one vehicle is always selected — outlined in white, with an
 //     arrow at each end it can still move towards. Two controls step the
-//     selection through the vehicles in order, and two slide the selected
-//     vehicle along its own axis: that is the four-button response box, and
-//     the arrow keys carry the same scheme. A gamepad's d-pad moves the
-//     selection spatially over the board instead. See package
-//     internal/rushinput, and the -keys / -pad / -joy flags. Choosing skips
-//     vehicles that cannot move at all; -movable-only=false offers every
-//     vehicle.
+//     selection through the vehicles in order ('s'/'d', or a gamepad's
+//     shoulder buttons), and four slide the selected vehicle in a direction
+//     (the arrow keys, or a gamepad's X/Y/A/B and d-pad) — left/right for a
+//     horizontal vehicle, up/down for a vertical one; a press across the axis
+//     moves nothing and is logged as wrong_axis. A four-button response box
+//     has two buttons to slide with instead, back and forward along the
+//     vehicle's own axis. See package internal/rushinput, and the -keys /
+//     -pad / -joy flags. Choosing skips vehicles that cannot move at all;
+//     -movable-only=false offers every vehicle.
 //
 // The two produce the same rows: a move is a vehicle and a direction whichever
 // device named it.
@@ -244,9 +246,16 @@ func runTrial(exp *control.Experiment, in *rushinput.Reader, useMouse, movableOn
 				if sel == nil {
 					continue
 				}
-				dir := rush.Left
-				if ev.Action == rushinput.MoveForward {
-					dir = rush.Right
+				dir, ok := ev.Action.SlideDir(sel.Horizontal)
+				if !ok {
+					// An arrow across the vehicle's axis: nothing can move,
+					// but the press is still one row, so a participant who
+					// misread a vehicle's orientation shows up in the file.
+					r := rushlog.NewRow(trial, p.Name, p.MinMoves, rushlog.EventWrongAxis, 0)
+					stamp(&r, onsetNS, ev.TsNS)
+					carRow(&r, sel)
+					logRow(exp, r)
+					continue
 				}
 				r := rushlog.NewRow(trial, p.Name, p.MinMoves, rushlog.EventClickBlocked, 0)
 				stamp(&r, onsetNS, ev.TsNS)

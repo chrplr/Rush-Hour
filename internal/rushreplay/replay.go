@@ -114,16 +114,16 @@ func Replay(t *Trial, lib Library) (*Replayed, error) {
 			// it that the board can contradict.
 			continue
 
-		case rushlog.EventClickBlocked, rushlog.EventSelect:
+		case rushlog.EventClickBlocked, rushlog.EventSelect, rushlog.EventWrongAxis:
 			car := carAt(b, e.Car)
 			if car == nil {
 				out.problem(e, "vehicle %q is not on the board", e.Car)
 				continue
 			}
-			// Neither a blocked click nor a change of selection moves anything,
-			// so both record from == to and name no direction to re-test. What
-			// can still be checked is that the vehicle was where the row says
-			// it was — which for a select row is a real check on the trace: the
+			// Neither a blocked click, a change of selection nor a press across
+			// the vehicle's axis moves anything, so all three record from == to
+			// and name no direction to re-test. What can still be checked is
+			// that the vehicle was where the row says it was — which for a select row is a real check on the trace: the
 			// selection has to have landed on a vehicle that existed, at the
 			// position the rest of the file puts it at.
 			out.checkFrom(e, car)

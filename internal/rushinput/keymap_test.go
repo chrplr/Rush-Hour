@@ -34,9 +34,15 @@ func TestDefaultMapIsPlayableOnEachDevice(t *testing.T) {
 		if !canSelect(c.bound) {
 			t.Errorf("%s: no way to choose a vehicle", c.name)
 		}
-		if !c.bound[MoveBack] || !c.bound[MoveForward] {
-			t.Errorf("%s: missing a slide direction (back=%v forward=%v)",
-				c.name, c.bound[MoveBack], c.bound[MoveForward])
+		// Sliding needs either both ways along the vehicle's own axis or all
+		// four absolute directions; anything less leaves some vehicle stuck
+		// one way.
+		alongAxis := c.bound[MoveBack] && c.bound[MoveForward]
+		absolute := c.bound[SlideLeft] && c.bound[SlideRight] && c.bound[SlideUp] && c.bound[SlideDown]
+		if !alongAxis && !absolute {
+			t.Errorf("%s: missing a slide direction (back=%v forward=%v, left=%v right=%v up=%v down=%v)",
+				c.name, c.bound[MoveBack], c.bound[MoveForward],
+				c.bound[SlideLeft], c.bound[SlideRight], c.bound[SlideUp], c.bound[SlideDown])
 		}
 	}
 }
@@ -82,23 +88,87 @@ func TestApplyKeysRemapsAResponseBox(t *testing.T) {
 	}
 	// Overriding adds to the defaults rather than replacing them, so the arrow
 	// keys the experimenter uses to check the setup still work.
-	if got := m.Keys[sdl.K_LEFT]; got != SelectPrev {
-		t.Errorf("left arrow: bound to %v, want %v", got, SelectPrev)
+	if got := m.Keys[sdl.K_LEFT]; got != SlideLeft {
+		t.Errorf("left arrow: bound to %v, want %v", got, SlideLeft)
 	}
 }
 
-// The arrow keys carry the four-button scheme, laid out the way the box is:
-// left/right walk the vehicles, up/down slide. A desk rehearsal on the arrows
-// then matches what the participant gets.
-func TestArrowsMirrorTheFourButtonBox(t *testing.T) {
+// The keyboard and the gamepad carry the same direct scheme: two controls walk
+// the vehicles, and four slide the selected one in the direction they point —
+// 's'/'d' and the arrows on the keyboard; the shoulders and the X/Y/A/B
+// diamond, duplicated on the d-pad, on a gamepad.
+func TestDefaultScheme(t *testing.T) {
 	m := DefaultMap()
 	for k, a := range map[sdl.Keycode]Action{
-		sdl.K_LEFT: SelectPrev, sdl.K_RIGHT: SelectNext,
-		sdl.K_UP: MoveBack, sdl.K_DOWN: MoveForward,
+		sdl.K_S: SelectPrev, sdl.K_D: SelectNext,
+		sdl.K_LEFT: SlideLeft, sdl.K_RIGHT: SlideRight,
+		sdl.K_UP: SlideUp, sdl.K_DOWN: SlideDown,
 	} {
 		if got := m.Keys[k]; got != a {
 			t.Errorf("key %q: bound to %v, want %v", KeyName(k), got, a)
 		}
+	}
+	for b, a := range map[sdl.GamepadButton]Action{
+		sdl.GAMEPAD_BUTTON_LEFT_SHOULDER:  SelectPrev,
+		sdl.GAMEPAD_BUTTON_RIGHT_SHOULDER: SelectNext,
+		sdl.GAMEPAD_BUTTON_WEST:           SlideLeft,
+		sdl.GAMEPAD_BUTTON_EAST:           SlideRight,
+		sdl.GAMEPAD_BUTTON_NORTH:          SlideUp,
+		sdl.GAMEPAD_BUTTON_SOUTH:          SlideDown,
+		sdl.GAMEPAD_BUTTON_DPAD_LEFT:      SlideLeft,
+		sdl.GAMEPAD_BUTTON_DPAD_RIGHT:     SlideRight,
+		sdl.GAMEPAD_BUTTON_DPAD_UP:        SlideUp,
+		sdl.GAMEPAD_BUTTON_DPAD_DOWN:      SlideDown,
+	} {
+		if got := m.Pad[b]; got != a {
+			t.Errorf("gamepad button %q: bound to %v, want %v", PadButtonName(b), got, a)
+		}
+	}
+}
+
+// A slide in an absolute direction acts only along the vehicle's own axis; the
+// back/forward pair of the four-button box acts along whichever axis it has.
+func TestSlideDir(t *testing.T) {
+	for _, c := range []struct {
+		a          Action
+		horizontal bool
+		dir        int
+		ok         bool
+	}{
+		{MoveBack, true, -1, true}, {MoveBack, false, -1, true},
+		{MoveForward, true, 1, true}, {MoveForward, false, 1, true},
+		{SlideLeft, true, -1, true}, {SlideLeft, false, 0, false},
+		{SlideRight, true, 1, true}, {SlideRight, false, 0, false},
+		{SlideUp, false, -1, true}, {SlideUp, true, 0, false},
+		{SlideDown, false, 1, true}, {SlideDown, true, 0, false},
+		{SelectNext, true, 0, false}, {Confirm, false, 0, false},
+	} {
+		dir, ok := c.a.SlideDir(c.horizontal)
+		if dir != c.dir || ok != c.ok {
+			t.Errorf("%v.SlideDir(horizontal=%v) = (%d, %v), want (%d, %v)",
+				c.a, c.horizontal, dir, ok, c.dir, c.ok)
+		}
+		if c.a.IsMove() != (c.a != SelectNext && c.a != Confirm) {
+			t.Errorf("%v.IsMove() = %v", c.a, c.a.IsMove())
+		}
+	}
+}
+
+// Every action name a spec may use parses back to its action, the new
+// hyphenated ones included.
+func TestActionNamesRoundTrip(t *testing.T) {
+	for _, name := range ActionNames() {
+		a, ok := ParseAction(name)
+		if !ok || a.String() != name {
+			t.Errorf("ParseAction(%q) = (%v, %v)", name, a, ok)
+		}
+	}
+	m := DefaultMap()
+	if err := m.ApplyPad("x=slide-up,y=slide-left"); err != nil {
+		t.Fatalf("ApplyPad: %v", err)
+	}
+	if m.Pad[sdl.GAMEPAD_BUTTON_WEST] != SlideUp || m.Pad[sdl.GAMEPAD_BUTTON_NORTH] != SlideLeft {
+		t.Errorf("x/y after remap: %v/%v", m.Pad[sdl.GAMEPAD_BUTTON_WEST], m.Pad[sdl.GAMEPAD_BUTTON_NORTH])
 	}
 }
 
@@ -108,10 +178,14 @@ func TestArrowsMirrorTheFourButtonBox(t *testing.T) {
 func TestLegendKeyNames(t *testing.T) {
 	lines := DefaultMap().Legend(false)
 	want := []string{
-		"left / 3  —  choose the previous car",
-		"right / 4  —  choose the next car",
-		"up / , / 1  —  slide it left, or up if it is vertical",
-		"down / . / 2  —  slide it right, or down if it is vertical",
+		"3 / s  —  choose the previous car",
+		"4 / d  —  choose the next car",
+		", / 1  —  slide it left, or up if it is vertical",
+		". / 2  —  slide it right, or down if it is vertical",
+		"left  —  slide a horizontal car left",
+		"right  —  slide a horizontal car right",
+		"up  —  slide a vertical car up",
+		"down  —  slide a vertical car down",
 	}
 	if strings.Join(lines, "\n") != strings.Join(want, "\n") {
 		t.Errorf("legend:\n%s\nwant:\n%s", strings.Join(lines, "\n"), strings.Join(want, "\n"))
@@ -121,7 +195,7 @@ func TestLegendKeyNames(t *testing.T) {
 	if err := m.ApplyKeys("1=none"); err != nil {
 		t.Fatalf("ApplyKeys: %v", err)
 	}
-	if got := m.Legend(false)[2]; got != "up / , / kp1  —  slide it left, or up if it is vertical" {
+	if got := m.Legend(false)[2]; got != ", / kp1  —  slide it left, or up if it is vertical" {
 		t.Errorf("legend with 1 unbound: %q", got)
 	}
 }
