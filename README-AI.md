@@ -337,7 +337,7 @@ env = ActionMasker(env, lambda e: e.unwrapped.action_masks())
 does something. Plain `PPO` will also run, and will do noticeably worse for the
 reason given there.
 
-Start easy. `--max-moves 6` is the first handful of puzzles; the library runs to
+Start easy. `--max-moves 6` keeps the puzzles of at most 6 moves; the library runs to
 51 moves, and the hard end is a genuinely difficult search problem — Rush Hour is
 PSPACE-complete in general.
 
@@ -403,7 +403,7 @@ window is open, with the pixel a participant would have had to click.
 
 ## 10. Choosing which puzzles to play
 
-The 49 puzzles run from 3 moves to 51, hardest last. Three ways to pick:
+The 441 puzzles run from 3 moves to 51, in two blocks each ordered easy to hard (`p01`–`p49`, then `e001`–`e392`). Three ways to pick:
 
 ```python
 from rushhour_gym import RushHourEnv

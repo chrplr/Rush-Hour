@@ -89,7 +89,7 @@ step, without producing an executable:
 go run .                  # first 12 puzzles, fullscreen
 go run . -w -s 3          # windowed, subject 3
 go run . -n 20            # first 20 puzzles
-go run . -n 0             # the whole 49-puzzle library
+go run . -n 0             # the whole 441-puzzle library
 
 go run . -no-mouse        # scanner: hide the cursor, play with buttons only
 go run . -input-debug     # print every key/button press and the name to bind it by
@@ -174,7 +174,7 @@ the nearer one a row up. A vehicle sharing the current row band (for a
 left/right push) or column band (for up/down) always wins over one that does
 not. When nothing lies that way the selection wraps to the far side, so a
 direction is never a push that does nothing, and every vehicle is reachable —
-over the whole 49-puzzle library, no vehicle is ever more than **4 presses**
+over the whole 441-puzzle library, no vehicle is ever more than **4 presses**
 away from any other (`TestNeighbourReachesEveryVehicle`). To get spatial
 selection on the keyboard too: `-keys "i=up,k=down,j=left,l=right"`.
 
@@ -248,7 +248,12 @@ button down cannot slide a vehicle across the board.
 ## Puzzles
 
 `internal/rush/puzzles.txt` is embedded in the binary (`//go:embed`) and holds a library of
-**49 puzzles in increasing difficulty, from 3 to 51 moves**, one per line:
+**441 puzzles in two blocks, each in increasing difficulty**:
+
+- `p01`–`p49`: 49 puzzles, one per level from 3 to 51 moves;
+- `e001`–`e392`: 392 puzzles, 9 per level from 4 to 44 moves, then fewer at 45 to 49 moves (all the database has left there), none at 3, 50 or 51.
+
+One puzzle per line:
 
 ```
 <name>: <minimum moves>: <board>
@@ -270,21 +275,23 @@ vehicle by one cell, consecutive clicks on the same vehicle in the same
 direction are counted as a single slide. The raw click count is recoverable by
 counting `click_move` rows.
 
-A full session of 49 puzzles is long — the last ones take many minutes each —
-so `-n N` presents only the first *N* (default 12, `-n 0` for all). Because the
-file is ordered easy to hard, a prefix is a graded curriculum.
+A full session of the 49 `p` puzzles is long — the last ones take many minutes each —
+so `-n N` presents only the first *N* (default 12, `-n 0` for all 441). Because the
+`p` block is ordered easy to hard, a prefix of up to 49 is a graded curriculum; past
+it, `-n` starts again at 4 moves with the `e` block.
 
 The boards come from **Michael Fogleman's exhaustive Rush Hour database**
 (2,577,412 puzzles, [michaelfogleman.com/rush](https://www.michaelfogleman.com/rush/)):
-wall-free positions with at least 8 vehicles, one per difficulty level, re-scored
-with the solver in `internal/rush/solver.go` (Fogleman's own move metric differs). `p02` is
-the board of the original pygame program.
+wall-free positions with at least 8 vehicles, re-scored with the solver in
+`internal/rush/solver.go`. `p02` is the board of the original pygame program. The `e`
+block also leaves out boards with 15 vehicles, whose 15th is labelled `O`, which the
+parser reads as an empty cell; its header gives the seed of the draw.
 
 Every line is parsed and validated at startup — a vehicle that is bent, of the
 wrong length, or a target car off row 2 aborts the program before the first
 trial rather than producing an unsolvable board. `TestEmbeddedPuzzles` goes
 further: it solves each puzzle by breadth-first search and fails if one is
-unsolvable, duplicated, mis-labelled, or out of order.
+unsolvable, duplicated, mis-labelled, or out of order within its block.
 
 To use a different puzzle set, edit `internal/rush/puzzles.txt` and rebuild
 (or pass `-puzzles <path>` to the environment server, which reads one at runtime). The declared

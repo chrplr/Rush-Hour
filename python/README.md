@@ -59,7 +59,7 @@ match, and publishes the package to PyPI after the archives.
 
 | id | puzzles | step budget |
 |---|---|---|
-| `RushHour-v0` | all 49 | 500 |
+| `RushHour-v0` | all 441 | 500 |
 | `RushHour-Easy-v0` | optimum ≤ 12 moves | 200 |
 | `RushHourFixed-v0` | `p02`, the classic board | 100 |
 | `RushHourHuman-v0` | as configured; a *person* plays (see below) | none |
