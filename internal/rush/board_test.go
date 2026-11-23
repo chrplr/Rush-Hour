@@ -4,7 +4,10 @@
 
 package rush
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // The board of the original pygame implementation (rush_hour/rush.py).
 const classic = "BCCCoo BoooDo oAAEDo oooEoo FFoEoo ooGGGo"
@@ -97,7 +100,9 @@ func TestSolvedRequiresRightWall(t *testing.T) {
 
 // TestEmbeddedPuzzles checks that every puzzle shipped in puzzles.txt parses
 // and is actually solvable, and reports the minimum number of moves so the
-// file's difficulty ordering can be verified.
+// file's difficulty ordering can be verified. The file is a run of blocks,
+// each named by its own letter prefix (p01..., e001...) and ordered easy to
+// hard on its own; a prefix that comes back after another block is an error.
 func TestEmbeddedPuzzles(t *testing.T) {
 	puzzles, err := ParsePuzzleFile(PuzzleFile)
 	if err != nil {
@@ -108,8 +113,17 @@ func TestEmbeddedPuzzles(t *testing.T) {
 	}
 
 	prev := 0
+	block := ""
+	finishedBlocks := make(map[string]bool)
 	seen := make(map[string]string, len(puzzles))
 	for _, p := range puzzles {
+		if prefix := strings.TrimRight(p.Name, "0123456789"); prefix != block {
+			if finishedBlocks[prefix] {
+				t.Errorf("%s is outside the block of the other %q puzzles", p.Name, prefix)
+			}
+			finishedBlocks[block] = true
+			block, prev = prefix, 0
+		}
 		n := MinMoves(p.Fresh())
 		if n < 0 {
 			t.Errorf("%s: unsolvable\n%s", p.Name, p.Board.String())
@@ -121,7 +135,7 @@ func TestEmbeddedPuzzles(t *testing.T) {
 			t.Errorf("%s: puzzles.txt declares %d moves, solver finds %d", p.Name, p.MinMoves, n)
 		}
 		if n < prev {
-			t.Errorf("%s needs %d moves but follows a puzzle needing %d — puzzles.txt should be ordered easy to hard",
+			t.Errorf("%s needs %d moves but follows a puzzle needing %d — each block of puzzles.txt should be ordered easy to hard",
 				p.Name, n, prev)
 		}
 		prev = n
